@@ -52,46 +52,46 @@ class ZBeacon(object):
         print("Terminating zbeacon")
 
     # Set broadcast interval in milliseconds (default is 1000 msec)
-    def SetInterval(self, interval=1000):
+    def set_interval(self, interval=1000):
         self._pipe.send_unicode("INTERVAL", flags=zmq.SNDMORE)
         self._pipe.send_unicode(interval)
 
     # Filter out any beacon that looks exactly like ours
-    def SetNoEcho(self):
+    def set_noecho(self):
         self._pipe.send_unicode("NOECHO")
 
     # Start broadcasting beacon to peers at the specified interval
-    def Publish(self, transmit):
+    def publish(self, transmit):
         self._pipe.send_unicode("PUBLISH", flags=zmq.SNDMORE)
         #TODO
         self._pipe.send("transmitbla")
 
     # Stop broadcasting beacons
-    def Silence(self):
+    def silence(self):
         self._pipe.send("SILENCE")
 
     # Start listening to other peers; zero-sized filter means get everything
-    def Subscribe(self, filter):
+    def subscribe(self, filter):
         self._pipe.send_unicode("SUBSCRIBE", flags=zmq.SNDMORE)
         #TODO What in filter??
         self._pipe.send(self._filter)
 
     # Stop listening to other peers
-    def Unsubscribe(self, filter):
+    def unsubscribe(self, filter):
         self._pipe.send_unicode("UNSUBSCRIBE")
 
     # Get beacon ZeroMQ socket, for polling or receiving messages
-    def GetSocket(self):
+    def get_socket(self):
         return self._pipe
     
     # Return our own IP address as printable string
-    def GetHostname(self):
+    def get_hostname(self):
         return self._hostname
 
 
 class ZBeaconAgent(object):
 
-    def __init__(self, ctx, pipe, port, beaconAddress="225.25.25.25"):
+    def __init__(self, ctx, pipe, port, beaconAddress="255.255.255.255"):
         # Socket to talk back to application
         self._pipe = pipe
         # UDP socket for send/recv
@@ -171,7 +171,7 @@ class ZBeaconAgent(object):
     def __del__(self):
         self._udpSock.close()
 
-    def GetInterface(self):
+    def get_interface(self):
         # Get the actual network interface we're working on
         # Currently implemented for POSIX and for Windows
         # This is required for getting broadcastaddresses...
@@ -180,7 +180,7 @@ class ZBeaconAgent(object):
         # TODO
         pass
 
-    def ApiCommand(self):
+    def api_command(self):
         cmds = self._pipe.recv_multipart()
         print("ApiCommand: %s" %cmds)
         if str(cmds[0].decode('UTF-8')) == "INTERVAL":
@@ -192,10 +192,10 @@ class ZBeaconAgent(object):
         else:
             print("E: unexpected API command '%s'"% cmds)
 
-    def Send(self):
+    def send(self):
         self._udpSock.sendto(self.transmit.encode(encoding='UTF-8'), (self._dstAddr, self._port))
 
-    def Recv(self):
+    def recv(self):
         # do socket lees shit l.745
         # #define BEACON_MAX      255 //  Max size of beacon data
         try:
@@ -226,14 +226,14 @@ class ZBeaconAgent(object):
             items = dict(self.poller.poll(timeout*1000))
             
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
-                self.ApiCommand()
+                self.api_command()
                 print("PIPED:")
             if self._udpSock.fileno() in items and items[self._udpSock.fileno()] == zmq.POLLIN:
-                self.Recv()
+                self.recv()
                 print("RECV")
 
             if self.transmit and time.time() >= self._pingAt:
-                self.Send()
+                self.send()
                 self._pingAt = time.time() + self._interval
 
             if self._terminated:
@@ -241,13 +241,13 @@ class ZBeaconAgent(object):
         print("ZBeaconAgent terminated")
         
 
-def ZBeaconTest(ctx, pipe):
+def zbeacon_test(ctx, pipe):
     a = ZBeaconAgent(ctx, pipe, 1200)
             
 if __name__ == '__main__':
     ctx = zmq.Context()
     beacon = ZBeacon(ctx, 1200)
-    beacon_pipe = beacon.GetSocket()
+    beacon_pipe = beacon.get_socket()
     while True:
         try:
             msg = beacon_pipe.recv()
