@@ -119,7 +119,7 @@ class ZBeaconAgent(object):
         self.broadcast = '255.255.255.255'
         #byte announcement [2] = (port_nbr >> 8) & 0xFF, port_nbr & 0xFF
         try:
-            if ipaddress.IPv4Address(beaconAddress).is_multicast:
+            if ipaddress.IPv4Address(beacon_address).is_multicast:
                 # TTL
                 self._udp_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
                 # TODO: This should only be used if we do not have inproc method! 
@@ -203,7 +203,7 @@ class ZBeaconAgent(object):
         except socket.error as e:
             print(e)
         # If noEcho is set, check if beacon is our own
-        if self._noEcho:
+        if self._noecho:
             if self.transmit == data.decode('UTF-8'):
                 print("this is our own beacon, ignoring")
                 return
@@ -223,8 +223,8 @@ class ZBeaconAgent(object):
                 if timeout < 0:
                     timeout = 0
 
-            items = dict(self.poller.poll(timeout*1000))
-            
+            items = dict(self.poller.poll(timeout * 1000))
+
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
                 self.api_command()
                 print("PIPED:")
@@ -239,11 +239,10 @@ class ZBeaconAgent(object):
             if self._terminated:
                 break
         print("ZBeaconAgent terminated")
-        
 
 def zbeacon_test(ctx, pipe):
     a = ZBeaconAgent(ctx, pipe, 1200)
-            
+
 if __name__ == '__main__':
     ctx = zmq.Context()
     beacon = ZBeacon(ctx, 1200)
