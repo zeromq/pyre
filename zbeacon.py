@@ -232,6 +232,7 @@ class ZBeaconAgent(object):
                 print("this is our own beacon, ignoring")
                 return
         # send the data onto the pipe
+        self._pipe.send_unicode(peername, zmq.SNDMORE)
         self._pipe.send(data)
 
     def run(self):
