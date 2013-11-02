@@ -63,8 +63,7 @@ class ZBeacon(object):
     # Start broadcasting beacon to peers at the specified interval
     def publish(self, transmit):
         self._pipe.send_unicode("PUBLISH", flags=zmq.SNDMORE)
-        #TODO
-        self._pipe.send("transmitbla")
+        self._pipe.send(transmit)
 
     # Stop broadcasting beacons
     def silence(self):
@@ -73,8 +72,10 @@ class ZBeacon(object):
     # Start listening to other peers; zero-sized filter means get everything
     def subscribe(self, filter):
         self._pipe.send_unicode("SUBSCRIBE", flags=zmq.SNDMORE)
-        #TODO What in filter??
-        self._pipe.send(self._filter)
+        if (len(filter) > BEACON_MAX):
+            print("ERROR: filter size is too big")
+        else:
+            self._pipe.send(filter)
 
     # Stop listening to other peers
     def unsubscribe(self, filter):
@@ -110,7 +111,7 @@ class ZBeaconAgent(object):
         self._ping_at = 0 #start bcast immediately
         # Beacon transmit data
         # struct.pack('cccb16sIb', b'Z',b'R',b'E', 1, uuid.bytes, self._port_nbr, 1)
-        self.transmit = "hello"
+        self.transmit = None
         # Beacon filter data
         self._filter = self.transmit #not used?
         # Our own address
@@ -183,28 +184,51 @@ class ZBeaconAgent(object):
     def api_command(self):
         cmds = self._pipe.recv_multipart()
         print("ApiCommand: %s" %cmds)
-        if str(cmds[0].decode('UTF-8')) == "INTERVAL":
-            self._interval = atoi(cmds[1])
-        if str(cmds[0].decode('UTF-8')) == "TERMINATE":
-            self.transmit = "bye"
+        cmd = cmds.pop(0)
+        cmd = cmd.decode('UTF-8')
+        if cmd == "INTERVAL":
+            self._interval = atoi(cmds.pop(0))
+        elif cmd == "NOECHO":
+            self._noecho = True
+        elif cmd == "PUBLISH":
+            self.transmit = cmds.pop(0)
+            print(self.transmit)
+            # start broadcasting immediately
+            self.ping_at = time.time()
+        elif cmd == "SILENCE":
+            self.transmit = None
+        elif cmd == "SUBSCRIBE":
+            self._filter = cmds.pop(0)
+            print(self._filter)
+        elif cmd == "UNSUBSCRIBE":
+            self.filter = None
+        elif cmd == "TERMINATE":
             self._terminated = True
             self._pipe.send_unicode("OK")
         else:
             print("E: unexpected API command '%s'"% cmds)
 
     def send(self):
-        self._udp_sock.sendto(self.transmit.encode(encoding='UTF-8'), (self._dstAddr, self._port))
+        self._udp_sock.sendto(self.transmit, (self._dstAddr, self._port))
 
     def recv(self):
-        # do socket lees shit l.745
-        # #define BEACON_MAX      255 //  Max size of beacon data
         try:
             data, addr = self._udp_sock.recvfrom(255)
         except socket.error as e:
             print(e)
+
+        # Get sender address as printable string
+        peername = addr[0]
+        # If filter is set, check that beacon matches it
+        if self._filter:
+            if len(self._filter) < len(data):
+                match_data = data[:len(self._filter)]
+                if (match_data != self._filter):
+                    print("Received beacon doesn't match filter, discarding")
+                    return
         # If noEcho is set, check if beacon is our own
         if self._noecho:
-            if self.transmit == data.decode('UTF-8'):
+            if self.transmit == data:
                 print("this is our own beacon, ignoring")
                 return
         # send the data onto the pipe
