@@ -27,6 +27,8 @@
         sequence      number 2
 """
 
+import struct
+
 STRING_MAX = 255
 
 class ZreMsg(object):
@@ -40,7 +42,7 @@ class ZreMsg(object):
     PING    = 6
     PING_OK = 7
 
-    def __init__(self, id, *args, **kwargs):
+    def __init__(self, id, data, *args, **kwargs):
         self.address = ""
         self.id = id
         self.sequence = 0
@@ -49,6 +51,9 @@ class ZreMsg(object):
         self.status = 0
         self.headers = ""
         self.content = ""
+        self.data = data
+        self._needle =  0
+        self._ceil = len(data)
 
     #def __del__(self):
 
@@ -168,4 +173,92 @@ class ZreMsg(object):
     
     def set_group(self, group):
         pass
+
+    def _get_string(self):
+        s_len = self._get_number1()
+        print(s_len)
+        s = struct.unpack_from(str(s_len)+'s', self.data , offset=self._needle)
+        self._needle += struct.calcsize('s'* s_len)
+        return s[0].decode('UTF-8')
     
+    def _get_number1(self):
+        num = struct.unpack_from('b', self.data , offset=self._needle)
+        self._needle += struct.calcsize('b')
+        return num[0] 
+
+    def _get_number2(self):
+        num = struct.unpack_from('H', self.data , offset=self._needle)
+        self._needle += struct.calcsize('H')
+        return num[0]
+
+    def _get_number4(self):
+        num = struct.unpack_from('I', self.data , offset=self._needle)
+        self._needle += struct.calcsize('I')
+        return num[0]
+
+    def _get_number8(self):
+        num = struct.unpack_from('Q', self.data , offset=self._needle)
+        self._needle += struct.calcsize('Q')
+        return num[0]
+    
+    def _zre_dictstring_to_dict(self, s):
+        l = s.split("=")
+        return { l[0]: l[1] }
+
+    def unpack_hello(self):
+        """unpack a zre hello packet
+        
+        sequence      number 2
+        ipaddress     string
+        mailbox       number 2
+        groups        strings
+        status        number 1
+        headers       dictionary
+        
+        """
+        sequence = self._get_number2()
+        print(sequence)
+        print("needle is at: %i"% self._needle )
+        ipaddress = self._get_string()
+        print(ipaddress)
+        print("needle is at: %i"% self._needle )
+        mailbox = self._get_number2()
+        print(mailbox)
+        print("needle is at: %i"% self._needle )
+        group_len = self._get_number1()
+        print("needle is at: %i"% self._needle )
+        print("grouplen: ", group_len)
+        groups = []
+        for x in range(group_len):
+            groups.append(self._get_string())
+        print(groups)
+        print("post_group: needle is at: %i"% self._needle )
+        status = self._get_number1()
+        headers_len = self._get_number1()
+        headers = {}
+        for x in range(headers_len):
+            hdr_item = self._get_string()
+            headers.update(self._zre_dictstring_to_dict(hdr_item))
+            #import ast
+            #for hdr in hdrlist:
+            #    # TODO: safer to use ast.literal_eval
+            #    headers.update(ast.literal_eval(hdr))
+        print(headers)
+
+if __name__ == '__main__':
+    testdata = struct.pack('Hb3sHbb2sb2sb2sbbb3sb3s',
+                           11,       # sequence
+                           3,        # str length 
+                           b"192",   # ipaddress
+                           20123,    # mailbox
+                           3,        # groups len
+                           2,b"g1",  # length + groupname
+                           2,b"g2",  # length + groupname
+                           2,b"g3",  # length + groupname
+                           4,        # status
+                           2,        # header len
+                           3,b"a=z", # length + dict
+                           3,b"b=x"  # length + dict
+                           )
+    m = ZreMsg(ZreMsg.HELLO, testdata)
+    m.unpack_hello()
