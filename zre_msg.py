@@ -28,6 +28,7 @@
 """
 
 import struct
+import zmq
 
 STRING_MAX = 255
 
@@ -42,27 +43,72 @@ class ZreMsg(object):
     PING    = 6
     PING_OK = 7
 
-    def __init__(self, id, data, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.address = ""
-        self.id = id
+        self.id = kwargs.get("id", None)
         self.sequence = 0
         self.mailbox = 0
         self.groups = ()
         self.status = 0
-        self.headers = ""
+        self.headers = {}
         self.content = ""
-        self.data = data
+        self.struct_data = kwargs.get("data", None)
         self._needle =  0
-        self._ceil = len(data)
+        self._ceil = len(self.struct_data)
 
     #def __del__(self):
 
-    def recv(self, input):
-        pass
-    
+    def recv(self, input_socket):
+        # If we're reading from a ROUTER socket, get address
+        frames = input_socket.recv_multipart()
+        if input_socket == zmq.ROUTER:
+            self.address = frames.pop(0)
+            if not self.address:
+                print("Empty or malformed")
+        # Read and parse command in frame
+        self.struct_data = frames.pop(0)
+        if not self.struct_data:
+            return None
+        
+        # Get and check protocol signature
+        self._needle = 0
+        self._ceil = len(frame)
+        signature = self._get_number2()
+        if signature != 0xAAA0:
+            print("invalid signature")
+            return None
+        
+        # Get message id and parse per message type
+        self.id = self._get_number1();
+
+        if self.id == ZreMsg.HELLO:
+            self.unpack_hello()
+        elif self.id == ZreMsg.WHISPER:
+            self.sequence = self._get_number2()
+            self.content = frames.pop(0)     
+        elif self.id == ZreMsg.SHOUT:
+            self.sequence = self._get_number2()
+            self.group = self._get_string()
+            self.content = frames.pop(0)
+        elif self.id == ZreMsg.JOIN:
+            self.sequence = self._get_number2()
+            self.group = self._get_string()
+            self.status = self._get_number1()    
+        elif self.id == ZreMsg.LEAVE:
+            self.sequence = self._get_number2()
+            self.group = self._get_string()
+            self.status = self._get_number1()
+        elif self.id == ZreMsg.PING:
+            self.sequence = self._get_number2()
+        elif self.id == ZreMsg.PING_OK:
+            self.sequence = self._get_number2()
+        else:
+            print("I don't know ID: %i" %self._id)
+            
     # Send the zre_msg to the output, and destroy it
     def send(self, output):
-        pass
+        if self._id == ZreMsg.HELLO:
+            self.pack_hello()
         #if self.id == ZreMsg.HELLO:
 
     
@@ -177,27 +223,27 @@ class ZreMsg(object):
     def _get_string(self):
         s_len = self._get_number1()
         print(s_len)
-        s = struct.unpack_from(str(s_len)+'s', self.data , offset=self._needle)
+        s = struct.unpack_from(str(s_len)+'s', self.struct_data , offset=self._needle)
         self._needle += struct.calcsize('s'* s_len)
         return s[0].decode('UTF-8')
     
     def _get_number1(self):
-        num = struct.unpack_from('b', self.data , offset=self._needle)
+        num = struct.unpack_from('b', self.struct_data , offset=self._needle)
         self._needle += struct.calcsize('b')
         return num[0] 
 
     def _get_number2(self):
-        num = struct.unpack_from('H', self.data , offset=self._needle)
+        num = struct.unpack_from('H', self.struct_data , offset=self._needle)
         self._needle += struct.calcsize('H')
         return num[0]
 
     def _get_number4(self):
-        num = struct.unpack_from('I', self.data , offset=self._needle)
+        num = struct.unpack_from('I', self.struct_data , offset=self._needle)
         self._needle += struct.calcsize('I')
         return num[0]
 
     def _get_number8(self):
-        num = struct.unpack_from('Q', self.data , offset=self._needle)
+        num = struct.unpack_from('Q', self.struct_data , offset=self._needle)
         self._needle += struct.calcsize('Q')
         return num[0]
     
@@ -216,34 +262,38 @@ class ZreMsg(object):
         headers       dictionary
         
         """
-        sequence = self._get_number2()
-        print(sequence)
+        self.sequence = self._get_number2()
+        print(self.sequence)
         print("needle is at: %i"% self._needle )
-        ipaddress = self._get_string()
-        print(ipaddress)
+        self.ipaddress = self._get_string()
+        print(self.ipaddress)
         print("needle is at: %i"% self._needle )
-        mailbox = self._get_number2()
-        print(mailbox)
+        self.mailbox = self._get_number2()
+        print(self.mailbox)
         print("needle is at: %i"% self._needle )
         group_len = self._get_number1()
         print("needle is at: %i"% self._needle )
         print("grouplen: ", group_len)
-        groups = []
+        self.groups = []
         for x in range(group_len):
-            groups.append(self._get_string())
-        print(groups)
+            self.groups.append(self._get_string())
+        print(self.groups)
         print("post_group: needle is at: %i"% self._needle )
-        status = self._get_number1()
+        self.status = self._get_number1()
         headers_len = self._get_number1()
-        headers = {}
+        self.headers = {}
         for x in range(headers_len):
             hdr_item = self._get_string()
-            headers.update(self._zre_dictstring_to_dict(hdr_item))
+            self.headers.update(self._zre_dictstring_to_dict(hdr_item))
             #import ast
             #for hdr in hdrlist:
             #    # TODO: safer to use ast.literal_eval
             #    headers.update(ast.literal_eval(hdr))
-        print(headers)
+        print(self.headers)
+
+    def pack_hello(self):
+        # Todo: binary concatenation
+        self._put
 
 if __name__ == '__main__':
     testdata = struct.pack('Hb3sHbb2sb2sb2sbbb3sb3s',
@@ -260,5 +310,5 @@ if __name__ == '__main__':
                            3,b"a=z", # length + dict
                            3,b"b=x"  # length + dict
                            )
-    m = ZreMsg(ZreMsg.HELLO, testdata)
+    m = ZreMsg(ZreMsg.HELLO, data=testdata)
     m.unpack_hello()
