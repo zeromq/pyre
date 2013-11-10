@@ -247,6 +247,27 @@ class ZreMsg(object):
         self._needle += struct.calcsize('Q')
         return num[0]
     
+    def _put_string(self, s):
+        self._put_number1(len(s))
+        d = struct.pack('%is' %len(s), s.encode('UTF-8'))
+        self.data += d
+    
+    def _put_number1(self, nr):
+        d = struct.pack('b', nr)
+        self.data += d
+
+    def _put_number2(self, nr):
+        d = struct.pack('H', nr)
+        self.data += d
+    
+    def _put_number4(self, nr):
+        d = struct.pack('I', nr)
+        self.data += d
+
+    def _put_number8(self, nr):
+        d = struct.pack('Q', nr)
+        self.data += d
+    
     def _zre_dictstring_to_dict(self, s):
         l = s.split("=")
         return { l[0]: l[1] }
@@ -260,8 +281,8 @@ class ZreMsg(object):
         groups        strings
         status        number 1
         headers       dictionary
-        
         """
+        self._needle = 0
         self.sequence = self._get_number2()
         print(self.sequence)
         print("needle is at: %i"% self._needle )
@@ -292,8 +313,29 @@ class ZreMsg(object):
         print(self.headers)
 
     def pack_hello(self):
-        # Todo: binary concatenation
-        self._put
+        """Pack a zre hello packet
+        
+        sequence      number 2
+        ipaddress     string
+        mailbox       number 2
+        groups        strings
+        status        number 1
+        headers       dictionary
+        
+        """
+        # clear data
+        self.data = b''
+        print(len(self.data))
+        self._put_number2(self.sequence)
+        self._put_string(self.ipaddress)
+        self._put_number2(self.mailbox)
+        self._put_number1(len(self.groups))
+        for g in self.groups:
+            self._put_string(g)
+        self._put_number1(self.status)
+        self._put_number1(len(self.headers))
+        for key, val in self.headers.items():
+            self._put_string("%s=%s" %(key, val))
 
 if __name__ == '__main__':
     testdata = struct.pack('Hb3sHbb2sb2sb2sbbb3sb3s',
@@ -310,5 +352,12 @@ if __name__ == '__main__':
                            3,b"a=z", # length + dict
                            3,b"b=x"  # length + dict
                            )
+    print("New ZRE HELLO message")
     m = ZreMsg(ZreMsg.HELLO, data=testdata)
+    print("Unpack a HELLO message")
     m.unpack_hello()
+    print("Pack a HELLO message")
+    m.pack_hello()
+    print("Unpack the packed HELLO message")
+    m.unpack_hello()
+    
