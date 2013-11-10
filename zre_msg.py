@@ -103,15 +103,50 @@ class ZreMsg(object):
         elif self.id == ZreMsg.PING_OK:
             self.sequence = self._get_number2()
         else:
-            print("I don't know ID: %i" %self._id)
-            
+            print("I don't know ID: %i" %self.id)
+
     # Send the zre_msg to the output, and destroy it
-    def send(self, output):
+    def send(self, output_socket):
+        # clear data
+        self.data = b''
+        # add signature
+        self._put_number2(0xAAA0)
+        # add id
+        self._put_number1(self.id)
         if self._id == ZreMsg.HELLO:
             self.pack_hello()
-        #if self.id == ZreMsg.HELLO:
+        elif self.id == ZreMsg.WHISPER:
+            self._put_number2(self.sequence)
+            # add content in a new frame
+        elif self.id == ZreMsg.SHOUT:
+            self._put_number2(self.sequence)
+            self._put_string(self.group)
+            # add content in a new frame
+        elif self.id == ZreMsg.JOIN:
+            self._put_number2(self.sequence)
+            self._put_string(self.group)
+            self._put_number1(self.status)
+        elif self.id == ZreMsg.LEAVE:
+            self._put_number2(self.sequence)
+            self._put_string(self.group)
+            self._put_number1(self.status)
+        elif self.id == ZreMsg.PING:
+            self._put_number2(self.sequence)
+        elif self.id == ZreMsg.PING_OK:
+            self._put_number2(self.sequence)
+        else:
+            print("I don't know ID: %i" %self.id)
 
-    
+        # If we're sending to a ROUTER, we send the address first
+        if output_socket.socket_type == zmq.ROUTER:
+            output_socket.sendm(self.address)
+        # Now send the data frame
+        if (self.content):
+            output_socket.sendm(self.data)
+            output_socket.send(self.content)
+        else:
+            output_socket.send(self.data)
+
     # Send the HELLO to the output in one step
     def send_hello(self, output, sequence, ipaddress, mailbox, groups, status, headers):
         pass
@@ -321,7 +356,6 @@ class ZreMsg(object):
         groups        strings
         status        number 1
         headers       dictionary
-        
         """
         # clear data
         self.data = b''
