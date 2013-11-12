@@ -12,7 +12,10 @@ class ZreGroup(object):
 
     # Remove peer from group
     def leave(self, peer):
-        self.peers.remove(peer)
+        try:
+            self.peers.remove(peer)
+        except ValueError as e:
+            pass
 
     # Send message to all peers in group
     def send(self, msg):

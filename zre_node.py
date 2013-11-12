@@ -271,7 +271,7 @@ class ZreNodeAgent(object):
             self._pipe.send(p.get_identity().bytes)
             # If peer has really vanished, expire it (delete)
             self.peer_purge(peer)
-            for grp in self.peer_groups:
+            for grp in self.peer_groups.values():
                 self.peer_delete(peer, grp)
 
         elif time.time() > p.evasive_at:
