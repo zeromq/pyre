@@ -3,8 +3,8 @@ import zmq
 
 class ZrePeer(object):
     
-    PEER_EXPIRED = 10000
-    PEER_EVASIVE = 5000
+    PEER_EXPIRED = 10            # expire after 10s
+    PEER_EVASIVE = 5             # mark evasive after 5s
 
     def __init__(self, ctx, identity):
         # TODO: what to do with container?

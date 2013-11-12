@@ -12,7 +12,7 @@ from uuid import UUID
 
 BEACON_VERSION = 1
 ZRE_DISCOVERY_PORT = 5120
-REAP_INTERVAL = 1000  # Once per second
+REAP_INTERVAL = 1.0  # Once per second
 
 class ZreNode(object):
 
@@ -237,17 +237,20 @@ class ZreNodeAgent(object):
 
     def peer_ping(self, peer):
         p = self.peers.get(peer)
-        if time.time() > p.expiredAt:
+        if time.time() > p.expired_at:
             self._pipe.send_unicode("EXIT", flags=zmq.SNDMORE)
-            self._pipe.send_unicode(p.get_identity())
-            # TDOD DELETE FROM GROUPS
-            self.get_purge(p)
-        elif time.time() > p.evasive_at():
+            self._pipe.send(p.get_identity().bytes)
+            # If peer has really vanished, expire it (delete)
+            self.peer_purge(peer)
+            for grp in self.peer_groups:
+                self.peer_delete(peer, grp)
+
+        elif time.time() > p.evasive_at:
             # If peer is being evasive, force a TCP ping.
             # TODO: do this only once for a peer in this state;
             # it would be nicer to use a proper state machine
             # for peer management.
-            msg = msg(msg.PING)
+            msg = ZreMsg(ZreMsg.PING)
             p.send(msg)
 
     def run(self):
@@ -261,7 +264,7 @@ class ZreNodeAgent(object):
             if timeout < 0:
                 timeout = 0
 
-            items = dict(self.poller.poll(timeout))
+            items = dict(self.poller.poll(timeout*1000))
 
             #print(items)
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
@@ -272,6 +275,11 @@ class ZreNodeAgent(object):
                 #print("NODE?:")
             if self.beacon.get_socket() in items and items[self.beacon.get_socket()] == zmq.POLLIN:
                 self.recv_beacon()
+            if time.time() >= reap_at:
+                reap_at = time.time() + REAP_INTERVAL
+                # Ping all peers and reap any expired ones
+                for peer_id in self.peers.copy().keys():
+                    self.peer_ping(peer_id)
 
 def chat_task(ctx, pipe):
     n = ZreNode(ctx)

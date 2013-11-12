@@ -28,8 +28,8 @@ import time
 import struct
 import ipaddress
 
-BEACON_MAX      = 255
-INTERVAL_DFLT   = 1000
+BEACON_MAX      = 255   # Max size of beacon data
+INTERVAL_DFLT   = 1.0  # Default interval = 1 second
 
 class ZBeacon(object):
 
@@ -52,7 +52,7 @@ class ZBeacon(object):
         print("Terminating zbeacon")
 
     # Set broadcast interval in milliseconds (default is 1000 msec)
-    def set_interval(self, interval=1000):
+    def set_interval(self, interval=INTERVAL_DFLT):
         self._pipe.send_unicode("INTERVAL", flags=zmq.SNDMORE)
         self._pipe.send_unicode(interval)
 
@@ -100,7 +100,7 @@ class ZBeaconAgent(object):
         # UDP port number we work on
         self._port = port
         # Beacon broadcast interval
-        self._interval = 10
+        self._interval = INTERVAL_DFLT
         # Are we broadcasting?
         self._enabled = True
         # Ignore own (unique) beacons?
@@ -108,7 +108,7 @@ class ZBeaconAgent(object):
         # API shut us down
         self._terminated = False
         # Next broadcast time
-        self._ping_at = 0 #start bcast immediately
+        self._ping_at = 0   # start bcast immediately
         # Beacon transmit data
         # struct.pack('cccb16sIb', b'Z',b'R',b'E', 1, uuid.bytes, self._port_nbr, 1)
         self.transmit = None
@@ -242,7 +242,7 @@ class ZBeaconAgent(object):
         self.poller.register(self._udp_sock, zmq.POLLIN)
         # not interrupted
         while(True):
-            timeout = 1000
+            timeout = -1
             if self.transmit:
                 timeout = self._ping_at - time.time()
                 if timeout < 0:
