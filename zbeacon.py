@@ -183,7 +183,7 @@ class ZBeaconAgent(object):
 
     def api_command(self):
         cmds = self._pipe.recv_multipart()
-        print("ApiCommand: %s" %cmds)
+        #print("ZBeaconApiCommand: %s" %cmds)
         cmd = cmds.pop(0)
         cmd = cmd.decode('UTF-8')
         if cmd == "INTERVAL":
@@ -192,7 +192,7 @@ class ZBeaconAgent(object):
             self._noecho = True
         elif cmd == "PUBLISH":
             self.transmit = cmds.pop(0)
-            print(self.transmit)
+            #print(self.transmit)
             # start broadcasting immediately
             self.ping_at = time.time()
         elif cmd == "SILENCE":
@@ -252,10 +252,10 @@ class ZBeaconAgent(object):
 
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
                 self.api_command()
-                print("PIPED:")
+                #print("PIPED:")
             if self._udp_sock.fileno() in items and items[self._udp_sock.fileno()] == zmq.POLLIN:
                 self.recv()
-                print("RECV")
+                #print("RECV")
 
             if self.transmit and time.time() >= self._ping_at:
                 self.send()

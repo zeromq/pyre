@@ -8,6 +8,7 @@ import uuid
 import zbeacon
 from zre_msg import *
 from zre_peer import *
+from uuid import UUID
 
 BEACON_VERSION = 1
 ZRE_DISCOVERY_PORT = 5120
@@ -68,12 +69,12 @@ class ZreNodeAgent(object):
         self._pipe = pipe
         self.inbox = ctx.socket(zmq.ROUTER)
         self.port = self.inbox.bind_to_random_port("tcp://*")
-        print(self.port)
+        self.status = 0
         if self.port < 0:
             print("ERROR setting up agent port")
         self.poller = zmq.Poller()
         self.identity = uuid.uuid4()
-        print("myID", self.identity)
+        print("myID: %s"% self.identity)
         self.beacon = zbeacon.ZBeacon(self._ctx, ZRE_DISCOVERY_PORT)
         # TODO: how do we set the header of the beacon?
         # line 299 zbeacon.c
@@ -126,25 +127,26 @@ class ZreNodeAgent(object):
         self.peers.pop(peer)
 
     # Find or create peer via its UUID string
-    def require_peer(self, identity, address, port):
+    def require_peer(self, identity, ipaddr, port):
         #  Purge any previous peer on same endpoint
         # TODO match a uuid to a peer
         p = self.peers.get(identity)
         if not p:
             # TODO: Purge any previous peer on same endpoint
-            p = ZrePeer(identity, address, port)
+            p = ZrePeer(self._ctx, identity)
             self.peers[identity] = p
-        p.connect(self.identity, "%s:%u" %(address, port))
-        m = ZreMsg(ZreMsg.HELLO)
-        m.set_ipaddress(self.host)
-        m.set_mailbox(self.port)
-        m.set_groups(self.own_groups.keys())
-        msg.set_status(self.status)
-        p.send(msg)
-
-        # Now tell the caller about the peer
-        self._pipe.send_unicode("ENTER", flags=zmq.SNDMORE);
-        self._pipe.send(identity.bytes)
+            print("Require_peer: %s" %identity)
+            p.connect(self.identity, "%s:%u" %(ipaddr, port))
+            m = ZreMsg(ZreMsg.HELLO)
+            m.set_ipaddress(self.host)
+            m.set_mailbox(self.port)
+            m.set_groups(self.own_groups.keys())
+            m.set_status(self.status)
+            p.send(m)
+    
+            # Now tell the caller about the peer
+            self._pipe.send_unicode("ENTER", flags=zmq.SNDMORE);
+            self._pipe.send(identity.bytes)
         return p
 
     # Find or create group via its name
@@ -165,8 +167,54 @@ class ZreNodeAgent(object):
 
     # Here we handle messages coming from other peers
     def recv_from_peer(self):
-        msgs = self.inbox.recv_multipart()
-        print(msgs)
+        zmsg = ZreMsg()
+        zmsg.recv(self.inbox)
+        #msgs = self.inbox.recv_multipart()
+        # Router socket tells us the identity of this peer
+        id = zmsg.get_address()
+        # On HELLO we may create the peer if it's unknown
+        # On other commands the peer must already exist
+        p = self.peers.get(id)
+        #print(p, id)
+        if zmsg.id == ZreMsg.HELLO:
+            p = self.require_peer(id, zmsg.get_ipaddress(), zmsg.get_mailbox())
+            p.set_ready(True)
+            #print("Hallo %s"%p)
+
+        # Ignore command if peer isn't ready
+        if not p or not p.get_ready():
+            print("Peer %s isn't ready" %p)
+            return
+        if not p.check_message(zmsg):
+            print("W: [%s] lost messages from %s" %(self.identity, identity))
+        if zmsg.id == ZreMsg.HELLO:
+            # Join peer to listed groups
+            for grp in zmsg.get_groups():
+                self.join_peer_group(p, grp)
+            # Hello command holds latest status of peer
+            p.set_status(zmsg.get_status())
+            # Store peer headers for future reference
+            p.set_headers(zmsg.get_headers())
+        elif zmsg.id == ZreMsg.WHISPER:
+            # Pass up to caller API as WHISPER event
+            self._pipe.send_unicode("WHISPER", zmq.SNDMORE)
+            self._pipe.send_unicode(p.get_identity(), zmq.SNDMORE)
+            self._pipe.send(zmsg.content)
+        elif zmsg.id == ZreMsg.SHOUT:
+            # Pass up to caller API as WHISPER event
+            self._pipe.send_unicode("SHOUT", zmq.SNDMORE)
+            self._pipe.send_unicode(p.get_identity(), zmq.SNDMORE)
+            self._pipe.send_unicode(zmsg.get_group(), zmq.SNDMORE)
+            self._pipe.send(zmsg.content)
+        elif zmsg.id == ZreMsg.PING:
+            p.send(ZreMsg(id=ZreMsg.PING_OK))
+        elif zmsg.id == ZreMsg.JOIN:
+            self.join_peer_group(p, zmsg.get_group())
+            #assert (zre_msg_status (msg) == zre_peer_status (peer))
+        elif zmsg.id == ZreMsg.LEAVE:
+            self.leave_peer_group(zmsg.get_group())
+        p.refresh()
+        
         # line 619
     def recv_beacon(self):
         msgs = self.beacon.get_socket().recv_multipart()
@@ -178,9 +226,9 @@ class ZreNodeAgent(object):
             print("Invalid ZRE Beacon version: %s" %beacon[3])
             return
         peer_id = uuid.UUID(bytes=beacon[4])
-        print("peerId: %s", peer_id)
+        #print("peerId: %s", peer_id)
         port = beacon[5]
-        peer = self.require_peer(peer_id, ipaddress, port)
+        peer = self.require_peer(peer_id, ipaddress.decode('UTF-8'), port)
         peer.refresh()
 
     #  Remove peer from group, if it's a member
@@ -218,10 +266,10 @@ class ZreNodeAgent(object):
             #print(items)
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
                 self.recv_from_api()
-                print("PIPED:")
+                #print("PIPED:")
             if self.inbox in items and items[self.inbox] == zmq.POLLIN:
                 self.recv_from_peer()
-                print("NODE?:")
+                #print("NODE?:")
             if self.beacon.get_socket() in items and items[self.beacon.get_socket()] == zmq.POLLIN:
                 self.recv_beacon()
 
@@ -234,7 +282,6 @@ def chat_task(ctx, pipe):
     poller.register(n.get_handle(), zmq.POLLIN)
     while(True):
         items = dict(poller.poll())
-        print("basa", items)
         if pipe in items and items[pipe] == zmq.POLLIN:
             message = pipe.recv()
             print("CHAT_TASK: %s" % message)

@@ -28,6 +28,7 @@
 """
 
 import struct
+import uuid
 import zmq
 
 STRING_MAX = 255
@@ -43,17 +44,18 @@ class ZreMsg(object):
     PING    = 6
     PING_OK = 7
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, id=None, *args, **kwargs):
         self.address = ""
-        self.id = kwargs.get("id", None)
+        self.id = id
         self.sequence = 0
+        self.ipaddress = ""
         self.mailbox = 0
         self.groups = ()
         self.status = 0
         self.headers = {}
         self.content = ""
-        self.struct_data = kwargs.get("data", None)
-        self._needle =  0
+        self.struct_data = kwargs.get("data", b'')
+        self._needle = 0
         self._ceil = len(self.struct_data)
 
     #def __del__(self):
@@ -61,25 +63,28 @@ class ZreMsg(object):
     def recv(self, input_socket):
         # If we're reading from a ROUTER socket, get address
         frames = input_socket.recv_multipart()
-        if input_socket == zmq.ROUTER:
-            self.address = frames.pop(0)
+        if input_socket.socket_type == zmq.ROUTER:
+            self.address = uuid.UUID(bytes=frames.pop(0))
+            print("ZreMsg id from router sock: %s" %self.address)
             if not self.address:
                 print("Empty or malformed")
         # Read and parse command in frame
         self.struct_data = frames.pop(0)
         if not self.struct_data:
             return None
-        
         # Get and check protocol signature
-        self._needle = 0
-        self._ceil = len(frame)
+        if self._needle != 0:
+            print("Message already decoded")
+        self._ceil = len(self.struct_data)
+        print("ZreMsg recv: %s" %self.struct_data)
         signature = self._get_number2()
         if signature != 0xAAA0:
-            print("invalid signature")
+            print("invalid signature %s" %signature)
             return None
-        
+
         # Get message id and parse per message type
         self.id = self._get_number1();
+        print("ZreMsg id: %i" % self.id)
 
         if self.id == ZreMsg.HELLO:
             self.unpack_hello()
@@ -108,12 +113,16 @@ class ZreMsg(object):
     # Send the zre_msg to the output, and destroy it
     def send(self, output_socket):
         # clear data
-        self.data = b''
+        self.struct_data = b''
+        self._needle = 0
         # add signature
         self._put_number2(0xAAA0)
+        #print(self.struct_data)
         # add id
+        print("ZreMsg: ", self.id)
         self._put_number1(self.id)
-        if self._id == ZreMsg.HELLO:
+        #print(self.struct_data)
+        if self.id == ZreMsg.HELLO:
             self.pack_hello()
         elif self.id == ZreMsg.WHISPER:
             self._put_number2(self.sequence)
@@ -142,10 +151,10 @@ class ZreMsg(object):
             output_socket.sendm(self.address)
         # Now send the data frame
         if (self.content):
-            output_socket.sendm(self.data)
+            output_socket.sendm(self.struct_data)
             output_socket.send(self.content)
         else:
-            output_socket.send(self.data)
+            output_socket.send(self.struct_data)
 
     # Send the HELLO to the output in one step
     def send_hello(self, output, sequence, ipaddress, mailbox, groups, status, headers):
@@ -185,10 +194,10 @@ class ZreMsg(object):
     
     # Get/set the message address
     def get_address(self):
-        pass
+        return self.address
     
     def set_address(self, address):
-        pass
+        self.address = address
     
     # Get the zre_msg id and printable command
     def get_id(self):
@@ -202,62 +211,61 @@ class ZreMsg(object):
     
     # Get/set the sequence field
     def get_sequence(self):
-        pass
+        return self.sequence
     
     def set_sequence(self, sequence):
-        pass
+        self.sequence = sequence
     
     # Get/set the ipaddress field
     def get_ipaddress(self):
-        pass
+        return self.ipaddress
     
-    def set_ipaddress(self, ipaddress):
-        pass
+    def set_ipaddress(self, ipaddr):
+        self.ipaddress = ipaddr
     
     # Get/set the mailbox field
     def get_mailbox(self):
-        pass
+        return self.mailbox
     
-    def set_mailbox(self):
-        pass
+    def set_mailbox(self, port):
+        self.mailbox = port
     
     # Get/set the groups field
     def get_groups(self):
-        pass
+        return self.groups
     
     def set_groups(self, groups):
-        pass
+        self.groups = groups
     
     # Iterate through the groups field, and append a groups value
     # TODO: do we need this in python? l186 zre_msg.h
     
     #  Get/set the status field
     def get_status(self):
-        pass
+        return self.status
     
     def set_status(self, status):
-        pass
+        self.status = status
     
     # Get/set the headers field
     def get_headers(self):
-        pass
+        return self.headers
     
-    def set_headers(self):
-        pass
+    def set_headers(self, headers):
+        self.headers = headers
     
     # Get/set a value in the headers dictionary
     # TODO: l208 zre_msg.h
     
     # Get/set the group field
     def get_group(self):
-        pass
+        return self.group
     
     def set_group(self, group):
-        pass
+        self.group = group
 
     def _get_string(self):
         s_len = self._get_number1()
-        print(s_len)
         s = struct.unpack_from(str(s_len)+'s', self.struct_data , offset=self._needle)
         self._needle += struct.calcsize('s'* s_len)
         return s[0].decode('UTF-8')
@@ -285,23 +293,23 @@ class ZreMsg(object):
     def _put_string(self, s):
         self._put_number1(len(s))
         d = struct.pack('%is' %len(s), s.encode('UTF-8'))
-        self.data += d
+        self.struct_data += d
     
     def _put_number1(self, nr):
         d = struct.pack('b', nr)
-        self.data += d
+        self.struct_data += d
 
     def _put_number2(self, nr):
         d = struct.pack('H', nr)
-        self.data += d
+        self.struct_data += d
     
     def _put_number4(self, nr):
         d = struct.pack('I', nr)
-        self.data += d
+        self.struct_data += d
 
     def _put_number8(self, nr):
         d = struct.pack('Q', nr)
-        self.data += d
+        self.struct_data += d
     
     def _zre_dictstring_to_dict(self, s):
         l = s.split("=")
@@ -317,24 +325,24 @@ class ZreMsg(object):
         status        number 1
         headers       dictionary
         """
-        self._needle = 0
+        #self._needle = 0
         self.sequence = self._get_number2()
-        print(self.sequence)
-        print("needle is at: %i"% self._needle )
+        #print(self.sequence)
+        #print("needle is at: %i"% self._needle )
         self.ipaddress = self._get_string()
-        print(self.ipaddress)
-        print("needle is at: %i"% self._needle )
+        #print(self.ipaddress)
+        #print("needle is at: %i"% self._needle )
         self.mailbox = self._get_number2()
-        print(self.mailbox)
-        print("needle is at: %i"% self._needle )
+        #print(self.mailbox)
+        #print("needle is at: %i"% self._needle )
         group_len = self._get_number1()
-        print("needle is at: %i"% self._needle )
-        print("grouplen: ", group_len)
+        #print("needle is at: %i"% self._needle )
+        #print("grouplen: ", group_len)
         self.groups = []
         for x in range(group_len):
             self.groups.append(self._get_string())
-        print(self.groups)
-        print("post_group: needle is at: %i"% self._needle )
+        #print(self.groups)
+        #print("post_group: needle is at: %i"% self._needle )
         self.status = self._get_number1()
         headers_len = self._get_number1()
         self.headers = {}
@@ -345,7 +353,7 @@ class ZreMsg(object):
             #for hdr in hdrlist:
             #    # TODO: safer to use ast.literal_eval
             #    headers.update(ast.literal_eval(hdr))
-        print(self.headers)
+        #print(self.headers)
 
     def pack_hello(self):
         """Pack a zre hello packet
@@ -358,8 +366,10 @@ class ZreMsg(object):
         headers       dictionary
         """
         # clear data
-        self.data = b''
-        print(len(self.data))
+        #self.struct_data = b''
+        #print(len(self.struct_data))
+        #self._put_number2(0xAAA0)
+        #self._put_number1(self.id)
         self._put_number2(self.sequence)
         self._put_string(self.ipaddress)
         self._put_number2(self.mailbox)

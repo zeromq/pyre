@@ -1,15 +1,16 @@
 import time
+import zmq
 
 class ZrePeer(object):
     
     PEER_EXPIRED = 10000
     PEER_EVASIVE = 5000
 
-    def __init__(self, identity, container, ctx):
+    def __init__(self, ctx, identity):
         # TODO: what to do with container?
         self._ctx = ctx          # ZMQ context
         self.mailbox = None      # Socket through to peer
-        self.identity = identity # Identity string
+        self.identity = identity # Identity UUID
         self.endpoint = None     # Endpoint connected to
         self.evasive_at = 0      # Peer is being evasive
         self.expired_at = 0      # Peer has expired by now
@@ -24,19 +25,20 @@ class ZrePeer(object):
 
     # Connect peer mailbox
     def connect(self, reply_to, endpoint):
-        if not self.connected:
+        if self.connected:
             return
         
         # Create new outgoing socket (drop any messages in transit)
-        self.mailbox = zmq.Socket(self.ctx, zmq.DEALER)
+        self.mailbox = zmq.Socket(self._ctx, zmq.DEALER)
         # Set our caller 'From' identity so that receiving node knows
         # who each message came from.
-        self.mailbox.setsockopt(zmq.IDENTITY, reply_to)
+        self.mailbox.setsockopt(zmq.IDENTITY, reply_to.bytes)
         # Set a high-water mark that allows for reasonable activity
-        self.mailbox.setsockopt(zmq.SNDHWM, PEER_EXPIRED * 100)
+        self.mailbox.setsockopt(zmq.SNDHWM, ZrePeer.PEER_EXPIRED * 100)
         # Send messages immediately or return EAGAIN
         self.mailbox.setsockopt(zmq.SNDTIMEO, 0)
         # Connect through to peer node
+        #print("tcp://%s" %endpoint)
         self.mailbox.connect("tcp://%s" %endpoint)
         self.endpoint = endpoint
         self.connected = True
@@ -55,14 +57,20 @@ class ZrePeer(object):
     # Send message to peer
     def send(self, msg):
         if self.connected:
-            pass
+            self.sent_sequence += 1
+            msg.set_sequence(self.sent_sequence)
+            #try:
+            msg.send(self.mailbox)
+            print("ZrePeer send %s" %msg.struct_data)
+            #except Exception as e:
+            #    print("msg send failed, %s" %e)
+            #    self.disconnect()
             #zre_msg_set_sequence (*msg_p, ++(self->sent_sequence));
             #if (zre_msg_send (msg_p, self->mailbox) && errno == EAGAIN) {
                 #self.disconnect()
                 #return -1;
         else:
-            pass
-            #zre_msg_destroy (msg_p);
+            print("Peer not connected")
 
     # Return peer connected status
     def is_connected(self):
