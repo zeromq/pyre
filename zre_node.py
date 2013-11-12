@@ -50,7 +50,7 @@ class ZreNode(object):
     # Send message to a group of peers
     def shout(self, msg):
         self._pipe.send_unicode("SHOUT", flags=zmq.SNDMORE)
-        self._pipe.send_unicode(msg)
+        self._pipe.send_multipart(msg)
 
     # Return node handle, for polling
     # TOOO: rename this to socket because that's what it is
@@ -119,8 +119,12 @@ class ZreNodeAgent(object):
         elif command == "SHOUT":
             # Get group to send message to
             grpname = cmds.pop(0).decode('UTF-8')
-            if self.peer_groups[grpname]:
-                self.peer_groups[grpname].send_multipart(cmds, copy=False)
+            msg = ZreMsg(ZreMsg.SHOUT)
+            msg.set_group(grpname)
+            msg.content = cmds.pop(0)
+            print("SHOUT: ", msg.content)
+            if self.peer_groups.get(grpname):
+                self.peer_groups[grpname].send(msg)
         elif command == "JOIN":
             grpname = cmds.pop(0).decode('UTF-8')
             grp = self.own_groups.get(grpname)
@@ -150,7 +154,7 @@ class ZreNodeAgent(object):
                 print("Node is leaving group %s" % grpname)
         else:
             print('Unkown Node API command: %s' %command)
-            
+
     def peer_purge(self, peer):
         self.peers.pop(peer)
 
@@ -232,7 +236,7 @@ class ZreNodeAgent(object):
         elif zmsg.id == ZreMsg.SHOUT:
             # Pass up to caller API as WHISPER event
             self._pipe.send_unicode("SHOUT", zmq.SNDMORE)
-            self._pipe.send_unicode(p.get_identity(), zmq.SNDMORE)
+            self._pipe.send(p.get_identity().bytes, zmq.SNDMORE)
             self._pipe.send_unicode(zmsg.get_group(), zmq.SNDMORE)
             self._pipe.send(zmsg.content)
         elif zmsg.id == ZreMsg.PING:
@@ -322,10 +326,12 @@ def chat_task(ctx, pipe):
         if pipe in items and items[pipe] == zmq.POLLIN:
             message = pipe.recv()
             print("CHAT_TASK: %s" % message)
+            n.shout((b"CHAT", message))
         if n.get_handle() in items and items[n.get_handle()] == zmq.POLLIN:
             cmds = n.get_handle().recv_multipart()
-            print("NODE_MSG: ", cmds)
-
+            print("NODE_MSG TYPE: %s" % cmds.pop(0))
+            print("NODE_MSG PEER: %s" % uuid.UUID(bytes=cmds.pop(0)))
+            print("NODE_MSG CONT: %s" % cmds)
 
 
 if __name__ == '__main__':

@@ -29,7 +29,7 @@ import struct
 import ipaddress
 
 BEACON_MAX      = 255   # Max size of beacon data
-INTERVAL_DFLT   = 1.0  # Default interval = 1 second
+INTERVAL_DFLT   = 1.0   # Default interval = 1 second
 
 class ZBeacon(object):
 
@@ -43,7 +43,8 @@ class ZBeacon(object):
                         self._port_nbr,
                     )
         # Configure agent with arguments
-        self._pipe.send_unicode("%d" %port_nbr)
+        # TODO: already done in constructor
+        # self._pipe.send_unicode("%d" %port_nbr)
         # Agent replies with our host name
         self._hostname = self._pipe.recv_unicode()
 
@@ -164,7 +165,7 @@ class ZBeaconAgent(object):
         except socket.error as msg:
             print(msg)
         # Send our hostname back to AP
-        # TODO This results in just the ip address
+        # TODO This results in just the ip address and not sure if this is needed
         self.address = socket.gethostbyname(socket.gethostname())
         self._pipe.send_unicode(self.address)
         self.run()
@@ -199,21 +200,21 @@ class ZBeaconAgent(object):
             self.transmit = None
         elif cmd == "SUBSCRIBE":
             self._filter = cmds.pop(0)
-            print(self._filter)
         elif cmd == "UNSUBSCRIBE":
             self.filter = None
         elif cmd == "TERMINATE":
             self._terminated = True
             self._pipe.send_unicode("OK")
         else:
-            print("E: unexpected API command '%s'"% cmds)
+            print("E: unexpected API command '%s, %s'"%(cmd, cmds))
+
 
     def send(self):
         self._udp_sock.sendto(self.transmit, (self._dstAddr, self._port))
 
     def recv(self):
         try:
-            data, addr = self._udp_sock.recvfrom(255)
+            data, addr = self._udp_sock.recvfrom(BEACON_MAX)
         except socket.error as e:
             print(e)
 
@@ -229,7 +230,7 @@ class ZBeaconAgent(object):
         # If noEcho is set, check if beacon is our own
         if self._noecho:
             if self.transmit == data:
-                print("this is our own beacon, ignoring")
+                #print("this is our own beacon, ignoring")
                 return
         # send the data onto the pipe
         self._pipe.send_unicode(peername, zmq.SNDMORE)

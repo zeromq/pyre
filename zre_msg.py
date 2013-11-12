@@ -148,10 +148,10 @@ class ZreMsg(object):
 
         # If we're sending to a ROUTER, we send the address first
         if output_socket.socket_type == zmq.ROUTER:
-            output_socket.sendm(self.address)
+            output_socket.send(self.address, zmq.SNDMORE)
         # Now send the data frame
         if (self.content):
-            output_socket.sendm(self.struct_data)
+            output_socket.send(self.struct_data, zmq.SNDMORE)
             output_socket.send(self.content)
         else:
             output_socket.send(self.struct_data)
