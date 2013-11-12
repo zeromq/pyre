@@ -51,9 +51,10 @@ class ZreMsg(object):
         self.ipaddress = ""
         self.mailbox = 0
         self.groups = ()
+        self.group = None
         self.status = 0
         self.headers = {}
-        self.content = ""
+        self.content = b""
         self.struct_data = kwargs.get("data", b'')
         self._needle = 0
         self._ceil = len(self.struct_data)
@@ -90,11 +91,13 @@ class ZreMsg(object):
             self.unpack_hello()
         elif self.id == ZreMsg.WHISPER:
             self.sequence = self._get_number2()
-            self.content = frames.pop(0)     
+            if len(frames):
+                self.content = frames.pop(0)
         elif self.id == ZreMsg.SHOUT:
             self.sequence = self._get_number2()
             self.group = self._get_string()
-            self.content = frames.pop(0)
+            if len(frames):
+                self.content = frames.pop(0)
         elif self.id == ZreMsg.JOIN:
             self.sequence = self._get_number2()
             self.group = self._get_string()

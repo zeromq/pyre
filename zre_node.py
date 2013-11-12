@@ -5,6 +5,7 @@ import os
 import struct
 import zhelper
 import uuid
+import socket
 import zbeacon
 from zre_msg import *
 from zre_peer import *
@@ -12,7 +13,7 @@ from zre_group import *
 from uuid import UUID
 
 BEACON_VERSION = 1
-ZRE_DISCOVERY_PORT = 5120
+ZRE_DISCOVERY_PORT = 5670
 REAP_INTERVAL = 1.0  # Once per second
 
 class ZreNode(object):
@@ -81,9 +82,9 @@ class ZreNodeAgent(object):
         # line 299 zbeacon.c
         self.beacon.set_noecho()
         # construct a header
-        transmit = struct.pack('cccb16sIb', b'Z',b'R',b'E', 
+        transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
                                BEACON_VERSION, self.identity.bytes, 
-                               self.port, 1)
+                               socket.htons(self.port))
         self.beacon.publish(transmit)
         # construct the header filter 
         # (to discard none zre messages)
@@ -125,6 +126,9 @@ class ZreNodeAgent(object):
             print("SHOUT: ", msg.content)
             if self.peer_groups.get(grpname):
                 self.peer_groups[grpname].send(msg)
+            else:
+                print("group %s not found" %grpname)
+                print(self.peer_groups)
         elif command == "JOIN":
             grpname = cmds.pop(0).decode('UTF-8')
             grp = self.own_groups.get(grpname)
@@ -253,14 +257,14 @@ class ZreNodeAgent(object):
         msgs = self.beacon.get_socket().recv_multipart()
         ipaddress = msgs.pop(0)
         frame = msgs.pop(0)
-        beacon = struct.unpack('cccb16sIb', frame)
+        beacon = struct.unpack('cccb16sH', frame)
         # Ignore anything that isn't a valid beacon
         if beacon[3] != BEACON_VERSION:
             print("Invalid ZRE Beacon version: %s" %beacon[3])
             return
         peer_id = uuid.UUID(bytes=beacon[4])
         #print("peerId: %s", peer_id)
-        port = beacon[5]
+        port = socket.ntohs(beacon[5])
         peer = self.require_peer(peer_id, ipaddress.decode('UTF-8'), port)
         peer.refresh()
 
@@ -340,7 +344,7 @@ if __name__ == '__main__':
     while True:
         try:
             msg = input()
-            chat_pipe.send_unicode(msg)
+            chat_pipe.send(msg.encode('utf_8'))
         except (KeyboardInterrupt, SystemExit):
             break
     print("FINISHED")
