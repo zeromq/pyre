@@ -8,6 +8,7 @@ import uuid
 import zbeacon
 from zre_msg import *
 from zre_peer import *
+from zre_group import *
 from uuid import UUID
 
 BEACON_VERSION = 1
@@ -107,19 +108,46 @@ class ZreNodeAgent(object):
     # Here we handle the different control messages from the front-end
     def recv_from_api(self):
         cmds = self._pipe.recv_multipart()
-        command = cmds.pop().decode('UTF-8')
+        command = cmds.pop(0).decode('UTF-8')
         if command == "WHISPER":
             # Get peer to send message to
-            peer = cmds.pop().decode('UTF-8')
+            peer = cmds.pop(0).decode('UTF-8')
             # Send frame on out to peer's mailbox, drop message
             # if peer doesn't exist (may have been destroyed)
             if self.peers[peer]:
                 self.peers[peer].send_multipart(cmds, copy=False)
         elif command == "SHOUT":
             # Get group to send message to
-            group = cmds.pop().encode('UTF-8')
-            if self.peer_groups[group]:
-                self.peer_groups[group].send_multipart(cmds, copy=False)  
+            grpname = cmds.pop(0).decode('UTF-8')
+            if self.peer_groups[grpname]:
+                self.peer_groups[grpname].send_multipart(cmds, copy=False)
+        elif command == "JOIN":
+            grpname = cmds.pop(0).decode('UTF-8')
+            grp = self.own_groups.get(grpname)
+            if not grp:
+                # Only send if we're not already in group
+                grp = ZreGroup(grpname)
+                self.own_groups[grpname] = grp
+                msg = ZreMsg(ZreMsg.JOIN)
+                msg.set_group(grpname)
+                self.status += 1
+                msg.set_status(self.status)
+                for peer in self.peers:
+                    peer.send(msg)
+                print("Node is joining group %s" % grpname)
+        elif command == "LEAVE":
+            grpname = cmds.pop(0).decode('UTF-8')
+            grp = self.own_groups.get(grpname)
+            if grp:
+                # Only send if we're actually in group
+                msg = ZreMsg(ZreMsg.LEAVE)
+                msg.set_group(grpname)
+                self.status += 1
+                msg.set_status(self.status)
+                for peer in self.peers:
+                    peer.send(msg)
+                self.own_groups.pop(grpname)
+                print("Node is leaving group %s" % grpname)
         else:
             print('Unkown Node API command: %s' %command)
             
@@ -153,7 +181,8 @@ class ZreNodeAgent(object):
     def require_peer_group(self, groupname):
         grp = self.peer_groups.get(groupname)
         if not grp:
-            self.peer_groups[groupname] = group(groupname)
+            grp = ZreGroup(groupname)
+            self.peer_groups[groupname] = grp 
         return grp
 
     def join_peer_group(self, peer, name):
@@ -161,7 +190,7 @@ class ZreNodeAgent(object):
         grp.join(peer)
         # Now tell the caller about the peer joined group
         self._pipe.send_unicode("JOIN", flags=zmq.SNDMORE)
-        self._pipe.send_unicode(peer.get_identity(), flags=zmq.SNDMORE)
+        self._pipe.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
         self._pipe.send_unicode(name)
         return grp
 
@@ -304,8 +333,8 @@ if __name__ == '__main__':
     chat_pipe = zhelper.zthread_fork(ctx, chat_task)
     while True:
         try:
-            msg = chat_pipe.recv()
-            print("CHATMSG: %s" %msg)
+            msg = input()
+            chat_pipe.send_unicode(msg)
         except (KeyboardInterrupt, SystemExit):
             break
     print("FINISHED")
