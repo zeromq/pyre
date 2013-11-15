@@ -223,7 +223,7 @@ class ZreNodeAgent(object):
             print("Peer %s isn't ready" %p)
             return
         if not p.check_message(zmsg):
-            print("W: [%s] lost messages from %s" %(self.identity, identity))
+            print("W: [%s] lost messages from %s" %(self.identity, p.identity))
         if zmsg.id == ZreMsg.HELLO:
             # Join peer to listed groups
             for grp in zmsg.get_groups():
@@ -267,7 +267,7 @@ class ZreNodeAgent(object):
         port = socket.ntohs(beacon[5])
         peer = self.require_peer(peer_id, ipaddress.decode('UTF-8'), port)
         peer.refresh()
-
+        
     #  Remove peer from group, if it's a member
     def peer_delete(self, peer, group):
         group.leave(peer)
