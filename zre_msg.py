@@ -65,7 +65,8 @@ class ZreMsg(object):
         # If we're reading from a ROUTER socket, get address
         frames = input_socket.recv_multipart()
         if input_socket.socket_type == zmq.ROUTER:
-            self.address = uuid.UUID(bytes=frames.pop(0))
+            self.address = frames.pop(0)
+            self.address = uuid.UUID(hex=self.address.decode('ascii'))
             print("ZreMsg id from router sock: %s" %self.address)
             if not self.address:
                 print("Empty or malformed")
@@ -79,7 +80,7 @@ class ZreMsg(object):
         self._ceil = len(self.struct_data)
         print("ZreMsg recv: %s" %self.struct_data)
         signature = self._get_number2()
-        if signature != 0xAAA0:
+        if signature != (0xAAA0 | 1):
             print("invalid signature %s" %signature)
             return None
 
@@ -119,7 +120,7 @@ class ZreMsg(object):
         self.struct_data = b''
         self._needle = 0
         # add signature
-        self._put_number2(0xAAA0)
+        self._put_number2(0xAAA0 | 1)
         #print(self.struct_data)
         # add id
         print("ZreMsg: ", self.id)
@@ -274,23 +275,23 @@ class ZreMsg(object):
         return s[0].decode('UTF-8')
     
     def _get_number1(self):
-        num = struct.unpack_from('b', self.struct_data , offset=self._needle)
-        self._needle += struct.calcsize('b')
+        num = struct.unpack_from('>b', self.struct_data , offset=self._needle)
+        self._needle += struct.calcsize('>b')
         return num[0] 
 
     def _get_number2(self):
-        num = struct.unpack_from('H', self.struct_data , offset=self._needle)
-        self._needle += struct.calcsize('H')
+        num = struct.unpack_from('>H', self.struct_data , offset=self._needle)
+        self._needle += struct.calcsize('>H')
         return num[0]
 
     def _get_number4(self):
-        num = struct.unpack_from('I', self.struct_data , offset=self._needle)
-        self._needle += struct.calcsize('I')
+        num = struct.unpack_from('>I', self.struct_data , offset=self._needle)
+        self._needle += struct.calcsize('>I')
         return num[0]
 
     def _get_number8(self):
-        num = struct.unpack_from('Q', self.struct_data , offset=self._needle)
-        self._needle += struct.calcsize('Q')
+        num = struct.unpack_from('>Q', self.struct_data , offset=self._needle)
+        self._needle += struct.calcsize('>Q')
         return num[0]
     
     def _put_string(self, s):
@@ -299,19 +300,19 @@ class ZreMsg(object):
         self.struct_data += d
     
     def _put_number1(self, nr):
-        d = struct.pack('b', nr)
+        d = struct.pack('>b', nr)
         self.struct_data += d
 
     def _put_number2(self, nr):
-        d = struct.pack('H', nr)
+        d = struct.pack('>H', nr)
         self.struct_data += d
     
     def _put_number4(self, nr):
-        d = struct.pack('I', nr)
+        d = struct.pack('>I', nr)
         self.struct_data += d
 
     def _put_number8(self, nr):
-        d = struct.pack('Q', nr)
+        d = struct.pack('>Q', nr)
         self.struct_data += d
     
     def _zre_dictstring_to_dict(self, s):
