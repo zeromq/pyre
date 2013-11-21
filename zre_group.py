@@ -1,4 +1,4 @@
-class ZreGroup(object):
+class PyreGroup(object):
 
     def __init__(self, name, peers=[]):
         self.name = name

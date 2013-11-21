@@ -1,7 +1,7 @@
 import time
 import zmq
 
-class ZrePeer(object):
+class PyrePeer(object):
     
     PEER_EXPIRED = 10            # expire after 10s
     PEER_EVASIVE = 5             # mark evasive after 5s
@@ -34,7 +34,7 @@ class ZrePeer(object):
         # who each message came from.
         self.mailbox.setsockopt(zmq.IDENTITY, reply_to.hex.encode('ascii').upper())
         # Set a high-water mark that allows for reasonable activity
-        self.mailbox.setsockopt(zmq.SNDHWM, ZrePeer.PEER_EXPIRED * 100)
+        self.mailbox.setsockopt(zmq.SNDHWM, PyrePeer.PEER_EXPIRED * 100)
         # Send messages immediately or return EAGAIN
         self.mailbox.setsockopt(zmq.SNDTIMEO, 0)
         # Connect through to peer node
@@ -61,7 +61,7 @@ class ZrePeer(object):
             msg.set_sequence(self.sent_sequence)
             #try:
             msg.send(self.mailbox)
-            print("ZrePeer send %s" %msg.struct_data)
+            print("PyrePeer send %s" %msg.struct_data)
             #except Exception as e:
             #    print("msg send failed, %s" %e)
             #    self.disconnect()

@@ -16,12 +16,12 @@ BEACON_VERSION = 1
 ZRE_DISCOVERY_PORT = 5670
 REAP_INTERVAL = 1.0  # Once per second
 
-class ZreNode(object):
+class Pyre(object):
 
     def __init__(self, ctx):
         self._ctx = ctx
         self.verbose = False
-        self._pipe = zhelper.zthread_fork(self._ctx, ZreNodeAgent)
+        self._pipe = zhelper.zthread_fork(self._ctx, PyreAgent)
 
     # def __del__(self):
 
@@ -64,7 +64,7 @@ class ZreNode(object):
         self._pipe.send_unicode( name, flags=zmq.SNDMORE)
         self._pipe.send_unicode(value, flags=zmq.SNDMORE)
 
-class ZreNodeAgent(object):
+class PyreAgent(object):
 
     def __init__(self, ctx, pipe):
         self._ctx = ctx
@@ -134,7 +134,7 @@ class ZreNodeAgent(object):
             grp = self.own_groups.get(grpname)
             if not grp:
                 # Only send if we're not already in group
-                grp = ZreGroup(grpname)
+                grp = PyreGroup(grpname)
                 self.own_groups[grpname] = grp
                 msg = ZreMsg(ZreMsg.JOIN)
                 msg.set_group(grpname)
@@ -169,7 +169,7 @@ class ZreNodeAgent(object):
         p = self.peers.get(identity)
         if not p:
             # TODO: Purge any previous peer on same endpoint
-            p = ZrePeer(self._ctx, identity)
+            p = PyrePeer(self._ctx, identity)
             self.peers[identity] = p
             print("Require_peer: %s" %identity)
             p.connect(self.identity, "%s:%u" %(ipaddr, port))
@@ -189,7 +189,7 @@ class ZreNodeAgent(object):
     def require_peer_group(self, groupname):
         grp = self.peer_groups.get(groupname)
         if not grp:
-            grp = ZreGroup(groupname)
+            grp = PyreGroup(groupname)
             self.peer_groups[groupname] = grp 
         return grp
 
@@ -319,7 +319,7 @@ class ZreNodeAgent(object):
                     self.peer_ping(peer_id)
 
 def chat_task(ctx, pipe):
-    n = ZreNode(ctx)
+    n = Pyre(ctx)
     n.join("CHAT")
 
     poller = zmq.Poller()
