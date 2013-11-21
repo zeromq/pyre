@@ -23,10 +23,11 @@
 #   =========================================================================
 import socket
 import zmq
-import zhelper
 import time
 import struct
 import ipaddress
+# local modules
+from . import zhelper
 
 BEACON_MAX      = 255   # Max size of beacon data
 INTERVAL_DFLT   = 1.0   # Default interval = 1 second

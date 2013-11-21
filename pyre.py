@@ -3,14 +3,14 @@ import time
 import binascii
 import os
 import struct
-import zhelper
-import uuid
 import socket
-import zbeacon
-from zre_msg import *
-from zre_peer import *
-from zre_group import *
-from uuid import UUID
+import uuid
+# local modules
+from . import zbeacon
+from . import zhelper
+from .zre_msg import ZreMsg
+from .pyre_peer import PyrePeer
+from .pyre_group import PyreGroup
 
 BEACON_VERSION = 1
 ZRE_DISCOVERY_PORT = 5670

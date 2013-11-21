@@ -1,2 +1,3 @@
-__all__ = ['Pyre', 'ZBeacon', 'zhelper']
+__all__ = ['pyre', 'zbeacon', 'zhelper']
 
+from .pyre import Pyre
