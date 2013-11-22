@@ -53,9 +53,8 @@ class Pyre(object):
         self._pipe.send_unicode("SHOUT", flags=zmq.SNDMORE)
         self._pipe.send_multipart(msg)
 
-    # Return node handle, for polling
-    # TOOO: rename this to socket because that's what it is
-    def get_handle(self):
+    # Return node socket, for polling
+    def get_socket(self):
         return self._pipe
 
     # Set node header value
@@ -327,15 +326,15 @@ def chat_task(ctx, pipe):
 
     poller = zmq.Poller()
     poller.register(pipe, zmq.POLLIN)
-    poller.register(n.get_handle(), zmq.POLLIN)
+    poller.register(n.get_socket(), zmq.POLLIN)
     while(True):
         items = dict(poller.poll())
         if pipe in items and items[pipe] == zmq.POLLIN:
             message = pipe.recv()
             print("CHAT_TASK: %s" % message)
             n.shout((b"CHAT", message))
-        if n.get_handle() in items and items[n.get_handle()] == zmq.POLLIN:
-            cmds = n.get_handle().recv_multipart()
+        if n.get_socket() in items and items[n.get_socket()] == zmq.POLLIN:
+            cmds = n.get_socket().recv_multipart()
             print("NODE_MSG TYPE: %s" % cmds.pop(0))
             print("NODE_MSG PEER: %s" % uuid.UUID(bytes=cmds.pop(0)))
             print("NODE_MSG CONT: %s" % cmds)
