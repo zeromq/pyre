@@ -168,10 +168,13 @@ class PyreAgent(object):
         # TODO match a uuid to a peer
         p = self.peers.get(identity)
         if not p:
-            # TODO: Purge any previous peer on same endpoint
+            # Purge any previous peer on same endpoint
+            for peer_id, peer in self.peers.copy().items():
+                if peer.endpoint == "%s:%u" %(ipaddr, port):
+                    self.peer_purge(peer)
             p = PyrePeer(self._ctx, identity)
             self.peers[identity] = p
-            print("Require_peer: %s" %identity)
+            #print("Require_peer: %s" %identity)
             p.connect(self.identity, "%s:%u" %(ipaddr, port))
             m = ZreMsg(ZreMsg.HELLO)
             m.set_ipaddress(self.host)
@@ -179,7 +182,7 @@ class PyreAgent(object):
             m.set_groups(self.own_groups.keys())
             m.set_status(self.status)
             p.send(m)
-    
+
             # Now tell the caller about the peer
             self._pipe.send_unicode("ENTER", flags=zmq.SNDMORE);
             self._pipe.send(identity.bytes)
