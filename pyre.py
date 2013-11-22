@@ -123,17 +123,15 @@ class PyreAgent(object):
             msg = ZreMsg(ZreMsg.SHOUT)
             msg.set_group(grpname)
             msg.content = cmds.pop(0)
-            print("SHOUT: ", msg.content)
+            #print("SHOUT: ", msg.content)
             if self.peer_groups.get(grpname):
                 self.peer_groups[grpname].send(msg)
             else:
                 print("group %s not found" %grpname)
-                print(self.peer_groups)
+                #print(self.peer_groups)
         elif command == "JOIN":
-            print("JOIN")
             grpname = cmds.pop(0).decode('UTF-8')
             grp = self.own_groups.get(grpname)
-            print(grpname)
             if not grp:
                 # Only send if we're not already in group
                 grp = PyreGroup(grpname)
@@ -142,7 +140,6 @@ class PyreAgent(object):
                 msg.set_group(grpname)
                 self.status += 1
                 msg.set_status(self.status)
-                print(msg)
                 for peer in self.peers.values():
                     peer.send(msg)
                 print("Node is joining group %s" % grpname)
