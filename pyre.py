@@ -18,7 +18,7 @@ REAP_INTERVAL = 1.0  # Once per second
 
 class Pyre(object):
 
-    def __init__(self, ctx):
+    def __init__(self, ctx=zmq.Context()):
         self._ctx = ctx
         self.verbose = False
         self._pipe = zhelper.zthread_fork(self._ctx, PyreAgent)
@@ -130,8 +130,10 @@ class PyreAgent(object):
                 print("group %s not found" %grpname)
                 print(self.peer_groups)
         elif command == "JOIN":
+            print("JOIN")
             grpname = cmds.pop(0).decode('UTF-8')
             grp = self.own_groups.get(grpname)
+            print(grpname)
             if not grp:
                 # Only send if we're not already in group
                 grp = PyreGroup(grpname)
@@ -140,7 +142,8 @@ class PyreAgent(object):
                 msg.set_group(grpname)
                 self.status += 1
                 msg.set_status(self.status)
-                for peer in self.peers:
+                print(msg)
+                for peer in self.peers.values():
                     peer.send(msg)
                 print("Node is joining group %s" % grpname)
         elif command == "LEAVE":
