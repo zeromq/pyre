@@ -101,7 +101,7 @@ class PyreAgent(object):
 
     # def __del__(self):
         # destroy beacon
-    
+
     # Send message to all peers
     def peer_send(self, peer, msg):
         peer.send(msg)
