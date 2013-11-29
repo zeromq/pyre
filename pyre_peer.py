@@ -16,7 +16,7 @@ class PyrePeer(object):
         self.expired_at = 0      # Peer has expired by now
         self.connected = False   # Peer will send messages
         self.ready = False       # Peer has said Hello to us
-        self.status = ""         # Our status counter
+        self.status = 0         # Our status counter
         self.sent_sequence = 0   # Outgoing message sequence
         self.want_sequence = 0   # Incoming message sequence
         self.headers = []        # Peer headers
@@ -70,7 +70,7 @@ class PyrePeer(object):
                 #self.disconnect()
                 #return -1;
         else:
-            print("Peer not connected")
+            print("Peer %s not connected" % peer)
 
     # Return peer connected status
     def is_connected(self):
