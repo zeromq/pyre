@@ -163,7 +163,7 @@ class PyreAgent(object):
             print('Unkown Node API command: %s' %command)
 
     def peer_purge(self, peer):
-        self.peers.pop(peer)
+        self.peers.pop(peer.get_identity())
 
     # Find or create peer via its UUID string
     def require_peer(self, identity, ipaddr, port):
@@ -278,15 +278,15 @@ class PyreAgent(object):
     def peer_delete(self, peer, group):
         group.leave(peer)
 
-    def peer_ping(self, peer):
-        p = self.peers.get(peer)
+    def peer_ping(self, peer_id):
+        p = self.peers.get(peer_id)
         if time.time() > p.expired_at:
             self._pipe.send_unicode("EXIT", flags=zmq.SNDMORE)
             self._pipe.send(p.get_identity().bytes)
             # If peer has really vanished, expire it (delete)
-            self.peer_purge(peer)
+            self.peer_purge(p)
             for grp in self.peer_groups.values():
-                self.peer_delete(peer, grp)
+                self.peer_delete(p, grp)
 
         elif time.time() > p.evasive_at:
             # If peer is being evasive, force a TCP ping.

@@ -9,19 +9,17 @@ class PyreGroup(object):
 
     # Add peer to group
     def join(self, peer):
-        self.peers.add(peer)
+        self.peers.add(peer.get_identity())
         peer.set_status(peer.get_status() + 1)
 
 
     # Remove peer from group
     def leave(self, peer):
         try:
-            self.peers.remove(peer)
-        except ValueError as e:
-            pass
-        zyre_peer_set_status (peer, zyre_peer_status (peer) + 1);
+            self.peers.remove(peer.get_identity())
+        except KeyError as e:
+            print("Remving peer %s from %s failed, probably it isn't there?" %(peer, self.peers))
         peer.set_status(peer.get_status() + 1)
-        
 
     # Send message to all peers in group
     def send(self, msg):
