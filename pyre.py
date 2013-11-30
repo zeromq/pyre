@@ -23,7 +23,9 @@ class Pyre(object):
         self.verbose = False
         self._pipe = zhelper.zthread_fork(self._ctx, PyreNode)
 
-    # def __del__(self):
+    def quit(self):
+        print("oprotte")
+        self._pipe.send_unicode("TERMINATE")
 
     # Receive next message from node
     def recv(self):
@@ -72,6 +74,7 @@ class PyreNode(object):
     def __init__(self, ctx, pipe):
         self._ctx = ctx
         self._pipe = pipe
+        self._terminated = False
         self.inbox = ctx.socket(zmq.ROUTER)
         self.port = self.inbox.bind_to_random_port("tcp://*")
         self.status = 0
@@ -205,6 +208,9 @@ class PyreNode(object):
                     peer.send(msg)
                 self.own_groups.pop(grpname)
                 print("Node is leaving group %s" % grpname)
+        elif command == "TERMINATE":
+            self._terminated = True
+            self._pipe.send_unicode("OK")
         else:
             print('Unkown Node API command: %s' %command)
 
@@ -272,7 +278,7 @@ class PyreNode(object):
         port = socket.ntohs(beacon[5])
         peer = self.require_peer(peer_id, ipaddress.decode('UTF-8'), port)
         peer.refresh()
-        
+
     #  Remove peer from group, if it's a member
     def delete_peer(self, peer, group):
         group.leave(peer)
@@ -308,7 +314,6 @@ class PyreNode(object):
 
             items = dict(self.poller.poll(timeout*1000))
 
-            #print(items)
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
                 self.recv_api()
                 #print("PIPED:")
@@ -322,6 +327,8 @@ class PyreNode(object):
                 # Ping all peers and reap any expired ones
                 for peer_id in self.peers.copy().keys():
                     self.ping_peer(peer_id)
+            if self._terminated:
+                break
 
 def chat_task(ctx, pipe):
     n = Pyre(ctx)
