@@ -66,7 +66,7 @@ class ZreMsg(object):
         frames = input_socket.recv_multipart()
         if input_socket.socket_type == zmq.ROUTER:
             self.address = frames.pop(0)
-            self.address = uuid.UUID(hex=self.address.decode('ascii'))
+            self.address = uuid.UUID(bytes=self.address)
             print("ZreMsg id from router sock: %s" %self.address)
             if not self.address:
                 print("Empty or malformed")
@@ -152,7 +152,7 @@ class ZreMsg(object):
 
         # If we're sending to a ROUTER, we send the address first
         if output_socket.socket_type == zmq.ROUTER:
-            output_socket.send(self.address, zmq.SNDMORE)
+            output_socket.send(self.address.bytes, zmq.SNDMORE)
         # Now send the data frame
         if (self.content):
             output_socket.send(self.struct_data, zmq.SNDMORE)

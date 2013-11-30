@@ -32,7 +32,7 @@ class PyrePeer(object):
         self.mailbox = zmq.Socket(self._ctx, zmq.DEALER)
         # Set our caller 'From' identity so that receiving node knows
         # who each message came from.
-        self.mailbox.setsockopt(zmq.IDENTITY, reply_to.hex.encode('ascii').upper())
+        self.mailbox.setsockopt(zmq.IDENTITY, reply_to.bytes)
         # Set a high-water mark that allows for reasonable activity
         self.mailbox.setsockopt(zmq.SNDHWM, PyrePeer.PEER_EXPIRED * 100)
         # Send messages immediately or return EAGAIN
