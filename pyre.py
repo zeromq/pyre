@@ -109,6 +109,52 @@ class PyreNode(object):
     def send_peer(self, peer, msg):
         peer.send(msg)
 
+    def purge_peer(self, peer):
+        self.peers.pop(peer.get_identity())
+
+    # Find or create peer via its UUID string
+    def require_peer(self, identity, ipaddr, port):
+        #  Purge any previous peer on same endpoint
+        # TODO match a uuid to a peer
+        p = self.peers.get(identity)
+        if not p:
+            # Purge any previous peer on same endpoint
+            for peer_id, peer in self.peers.copy().items():
+                if peer.endpoint == "%s:%u" %(ipaddr, port):
+                    self.purge_peer(peer)
+            p = PyrePeer(self._ctx, identity)
+            self.peers[identity] = p
+            #print("Require_peer: %s" %identity)
+            p.connect(self.identity, "%s:%u" %(ipaddr, port))
+            m = ZreMsg(ZreMsg.HELLO)
+            m.set_ipaddress(self.host)
+            m.set_mailbox(self.port)
+            m.set_groups(self.own_groups.keys())
+            m.set_status(self.status)
+            p.send(m)
+
+            # Now tell the caller about the peer
+            self._pipe.send_unicode("ENTER", flags=zmq.SNDMORE);
+            self._pipe.send(identity.bytes)
+        return p
+
+    # Find or create group via its name
+    def require_peer_group(self, groupname):
+        grp = self.peer_groups.get(groupname)
+        if not grp:
+            grp = PyreGroup(groupname)
+            self.peer_groups[groupname] = grp 
+        return grp
+
+    def join_peer_group(self, peer, name):
+        grp = self.require_peer_group(name)
+        grp.join(peer)
+        # Now tell the caller about the peer joined group
+        self._pipe.send_unicode("JOIN", flags=zmq.SNDMORE)
+        self._pipe.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
+        self._pipe.send_unicode(name)
+        return grp
+
     # Here we handle the different control messages from the front-end
     def recv_api(self):
         cmds = self._pipe.recv_multipart()
@@ -162,52 +208,6 @@ class PyreNode(object):
         else:
             print('Unkown Node API command: %s' %command)
 
-    def purge_peer(self, peer):
-        self.peers.pop(peer.get_identity())
-
-    # Find or create peer via its UUID string
-    def require_peer(self, identity, ipaddr, port):
-        #  Purge any previous peer on same endpoint
-        # TODO match a uuid to a peer
-        p = self.peers.get(identity)
-        if not p:
-            # Purge any previous peer on same endpoint
-            for peer_id, peer in self.peers.copy().items():
-                if peer.endpoint == "%s:%u" %(ipaddr, port):
-                    self.purge_peer(peer)
-            p = PyrePeer(self._ctx, identity)
-            self.peers[identity] = p
-            #print("Require_peer: %s" %identity)
-            p.connect(self.identity, "%s:%u" %(ipaddr, port))
-            m = ZreMsg(ZreMsg.HELLO)
-            m.set_ipaddress(self.host)
-            m.set_mailbox(self.port)
-            m.set_groups(self.own_groups.keys())
-            m.set_status(self.status)
-            p.send(m)
-
-            # Now tell the caller about the peer
-            self._pipe.send_unicode("ENTER", flags=zmq.SNDMORE);
-            self._pipe.send(identity.bytes)
-        return p
-
-    # Find or create group via its name
-    def require_peer_group(self, groupname):
-        grp = self.peer_groups.get(groupname)
-        if not grp:
-            grp = PyreGroup(groupname)
-            self.peer_groups[groupname] = grp 
-        return grp
-
-    def join_peer_group(self, peer, name):
-        grp = self.require_peer_group(name)
-        grp.join(peer)
-        # Now tell the caller about the peer joined group
-        self._pipe.send_unicode("JOIN", flags=zmq.SNDMORE)
-        self._pipe.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
-        self._pipe.send_unicode(name)
-        return grp
-
     # Here we handle messages coming from other peers
     def recv_peer(self):
         zmsg = ZreMsg()
@@ -257,8 +257,7 @@ class PyreNode(object):
         elif zmsg.id == ZreMsg.LEAVE:
             self.leave_peer_group(zmsg.get_group())
         p.refresh()
-        
-        # line 619
+
     def recv_beacon(self):
         msgs = self.beacon.get_socket().recv_multipart()
         ipaddress = msgs.pop(0)
