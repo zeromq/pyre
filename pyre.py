@@ -24,7 +24,6 @@ class Pyre(object):
         self._pipe = zhelper.zthread_fork(self._ctx, PyreNode)
 
     def quit(self):
-        print("oprotte")
         self._pipe.send_unicode("TERMINATE")
 
     # Receive next message from node
