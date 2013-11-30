@@ -51,6 +51,8 @@ class ZBeacon(object):
 
     def __del__(self):
         self._pipe.send_unicode("TERMINATE")
+        # wait for confirmation
+        self._pipe.recv()
         print("Terminating zbeacon")
 
     # Set broadcast interval in milliseconds (default is 1000 msec)
