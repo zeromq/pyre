@@ -21,7 +21,7 @@ class Pyre(object):
     def __init__(self, ctx=zmq.Context()):
         self._ctx = ctx
         self.verbose = False
-        self._pipe = zhelper.zthread_fork(self._ctx, PyreAgent)
+        self._pipe = zhelper.zthread_fork(self._ctx, PyreNode)
 
     # def __del__(self):
 
@@ -67,7 +67,7 @@ class Pyre(object):
         self._pipe.send_unicode( name, flags=zmq.SNDMORE)
         self._pipe.send_unicode(value, flags=zmq.SNDMORE)
 
-class PyreAgent(object):
+class PyreNode(object):
 
     def __init__(self, ctx, pipe):
         self._ctx = ctx
@@ -106,11 +106,11 @@ class PyreAgent(object):
         # destroy beacon
 
     # Send message to all peers
-    def peer_send(self, peer, msg):
+    def send_peer(self, peer, msg):
         peer.send(msg)
 
     # Here we handle the different control messages from the front-end
-    def recv_from_api(self):
+    def recv_api(self):
         cmds = self._pipe.recv_multipart()
         command = cmds.pop(0).decode('UTF-8')
         if command == "WHISPER":
@@ -162,7 +162,7 @@ class PyreAgent(object):
         else:
             print('Unkown Node API command: %s' %command)
 
-    def peer_purge(self, peer):
+    def purge_peer(self, peer):
         self.peers.pop(peer.get_identity())
 
     # Find or create peer via its UUID string
@@ -174,7 +174,7 @@ class PyreAgent(object):
             # Purge any previous peer on same endpoint
             for peer_id, peer in self.peers.copy().items():
                 if peer.endpoint == "%s:%u" %(ipaddr, port):
-                    self.peer_purge(peer)
+                    self.purge_peer(peer)
             p = PyrePeer(self._ctx, identity)
             self.peers[identity] = p
             #print("Require_peer: %s" %identity)
@@ -209,7 +209,7 @@ class PyreAgent(object):
         return grp
 
     # Here we handle messages coming from other peers
-    def recv_from_peer(self):
+    def recv_peer(self):
         zmsg = ZreMsg()
         zmsg.recv(self.inbox)
         #msgs = self.inbox.recv_multipart()
@@ -275,18 +275,18 @@ class PyreAgent(object):
         peer.refresh()
         
     #  Remove peer from group, if it's a member
-    def peer_delete(self, peer, group):
+    def delete_peer(self, peer, group):
         group.leave(peer)
 
-    def peer_ping(self, peer_id):
+    def ping_peer(self, peer_id):
         p = self.peers.get(peer_id)
         if time.time() > p.expired_at:
             self._pipe.send_unicode("EXIT", flags=zmq.SNDMORE)
             self._pipe.send(p.get_identity().bytes)
             # If peer has really vanished, expire it (delete)
-            self.peer_purge(p)
+            self.purge_peer(p)
             for grp in self.peer_groups.values():
-                self.peer_delete(p, grp)
+                self.delete_peer(p, grp)
 
         elif time.time() > p.evasive_at:
             # If peer is being evasive, force a TCP ping.
@@ -311,10 +311,10 @@ class PyreAgent(object):
 
             #print(items)
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
-                self.recv_from_api()
+                self.recv_api()
                 #print("PIPED:")
             if self.inbox in items and items[self.inbox] == zmq.POLLIN:
-                self.recv_from_peer()
+                self.recv_peer()
                 #print("NODE?:")
             if self.beacon.get_socket() in items and items[self.beacon.get_socket()] == zmq.POLLIN:
                 self.recv_beacon()
@@ -322,7 +322,7 @@ class PyreAgent(object):
                 reap_at = time.time() + REAP_INTERVAL
                 # Ping all peers and reap any expired ones
                 for peer_id in self.peers.copy().keys():
-                    self.peer_ping(peer_id)
+                    self.ping_peer(peer_id)
 
 def chat_task(ctx, pipe):
     n = Pyre(ctx)
@@ -345,7 +345,6 @@ def chat_task(ctx, pipe):
             if type.decode('utf-8') == "SHOUT":
                 print("NODE_MSG GROUP: %s" % cmds.pop(0))
             print("NODE_MSG CONT: %s" % cmds)
-                
 
 
 if __name__ == '__main__':
