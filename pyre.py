@@ -276,7 +276,14 @@ class PyreNode(object):
         #print("peerId: %s", peer_id)
         port = socket.ntohs(beacon[5])
         peer = self.require_peer(peer_id, ipaddress.decode('UTF-8'), port)
-        peer.refresh()
+        # if we receive a beacon with port 0 this means the peer exited
+        if port == 0:
+            self._pipe.send_unicode("EXIT", flags=zmq.SNDMORE)
+            self._pipe.send(peer.get_identity().bytes)
+            # purge the peer (delete)
+            self.purge_peer(peer)
+        else:
+            peer.refresh()
 
     #  Remove peer from group, if it's a member
     def delete_peer(self, peer, group):

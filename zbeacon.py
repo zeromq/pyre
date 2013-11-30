@@ -174,6 +174,11 @@ class ZBeaconAgent(object):
         self.run()
 
     def __del__(self):
+        if self.transmit:
+            # since we are leaving we broadcast a zero port
+            transmit_end =  self.transmit[:20] + b'\x00\x00'
+            self.transmit = transmit_end
+            self._udp_sock.sendto(self.transmit, (self._dstAddr, self._port))
         self._udp_sock.close()
 
     def get_interface(self):
