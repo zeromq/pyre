@@ -52,7 +52,9 @@ class ZBeacon(object):
     def __del__(self):
         self._pipe.send_unicode("TERMINATE")
         # wait for confirmation
-        self._pipe.recv()
+        msg=b''
+        while(msg!=b'OK'):
+            msg = self._pipe.recv()
         print("Terminating zbeacon")
 
     # Set broadcast interval in milliseconds (default is 1000 msec)
@@ -88,7 +90,7 @@ class ZBeacon(object):
     # Get beacon ZeroMQ socket, for polling or receiving messages
     def get_socket(self):
         return self._pipe
-    
+
     # Return our own IP address as printable string
     def get_hostname(self):
         return self._hostname
@@ -174,11 +176,6 @@ class ZBeaconAgent(object):
         self.run()
 
     def __del__(self):
-        if self.transmit:
-            # since we are leaving we broadcast a zero port
-            transmit_end =  self.transmit[:20] + b'\x00\x00'
-            self.transmit = transmit_end
-            self._udp_sock.sendto(self.transmit, (self._dstAddr, self._port))
         self._udp_sock.close()
 
     def get_interface(self):
@@ -203,7 +200,7 @@ class ZBeaconAgent(object):
             self.transmit = cmds.pop(0)
             #print(self.transmit)
             # start broadcasting immediately
-            self.ping_at = time.time()
+            self._ping_at = time.time()
         elif cmd == "SILENCE":
             self.transmit = None
         elif cmd == "SUBSCRIBE":

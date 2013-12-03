@@ -23,8 +23,8 @@ class Pyre(object):
         self.verbose = False
         self._pipe = zhelper.zthread_fork(self._ctx, PyreNode)
 
-    def quit(self):
-        self._pipe.send_unicode("TERMINATE")
+    def stop(self):
+        self._pipe.send_unicode("STOP")
 
     # Receive next message from node
     def recv(self):
@@ -106,6 +106,14 @@ class PyreNode(object):
 
     # def __del__(self):
         # destroy beacon
+
+    def stop(self):
+        stop_transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
+                               BEACON_VERSION, self.identity.bytes, 
+                               socket.htons(0))
+        self.beacon.publish(stop_transmit)
+        # Give time for beacon to go out
+        time.sleep(0.001)
 
     # Send message to all peers
     def send_peer(self, peer, msg):
@@ -207,9 +215,10 @@ class PyreNode(object):
                     peer.send(msg)
                 self.own_groups.pop(grpname)
                 print("Node is leaving group %s" % grpname)
-        elif command == "TERMINATE":
-            self._terminated = True
+        elif command == "STOP":
+            self.stop()
             self._pipe.send_unicode("OK")
+            self._terminated = True
         else:
             print('Unkown Node API command: %s' %command)
 
