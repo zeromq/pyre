@@ -123,7 +123,7 @@ class ZreMsg(object):
         self._put_number2(0xAAA0 | 1)
         #print(self.struct_data)
         # add id
-        print("ZreMsg: ", self.id)
+        #print("ZreMsg: ", self.id)
         self._put_number1(self.id)
         #print(self.struct_data)
         if self.id == ZreMsg.HELLO:
@@ -156,7 +156,10 @@ class ZreMsg(object):
         # Now send the data frame
         if (self.content):
             output_socket.send(self.struct_data, zmq.SNDMORE)
-            output_socket.send(self.content)
+            if isinstance(self.content, list):
+                output_socket.send_multipart(self.content)
+            else:
+                output_socket.send(self.content)
         else:
             output_socket.send(self.struct_data)
 

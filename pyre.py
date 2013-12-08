@@ -45,15 +45,19 @@ class Pyre(object):
         self._pipe.send_unicode(group)
 
     # Send message to single peer; peer ID is first frame in message
-    def whisper(self, msg):
+    def whisper(self, peer, msg):
         self._pipe.send_unicode("WHISPER", flags=zmq.SNDMORE)
-        self._pipe.send_unicode(msg)
+        self._pipe.send(peer.bytes, flags=zmq.SNDMORE)
+        if isinstance(msg, list):
+            self._pipe.send_multipart(msg)
+        else:
+            self._pipe.send(msg)
 
     # Send message to a group of peers
     def shout(self, group, msg):
         self._pipe.send_unicode("SHOUT", flags=zmq.SNDMORE)
         self._pipe.send_unicode(group, flags=zmq.SNDMORE)
-        if isinstance(msg, list):      
+        if isinstance(msg, list):
             self._pipe.send_multipart(msg)
         else:
             self._pipe.send(msg)
@@ -119,7 +123,16 @@ class PyreNode(object):
     def send_peer(self, peer, msg):
         peer.send(msg)
 
-    def purge_peer(self, peer):
+    def purge_peer(self, peer, endpoint):
+        if (peer.get_endpoint() == endpoint):
+            peer.disconnect()
+
+    def remove_peer(self, peer):
+        self._pipe.send_unicode("EXIT", flags=zmq.SNDMORE)
+        self._pipe.send(peer.get_identity().bytes)
+        # If peer has really vanished, expire it (delete)
+        for grp in self.peer_groups.values():
+            self.delete_peer(peer, grp)
         self.peers.pop(peer.get_identity())
 
     # Find or create peer via its UUID string
@@ -129,9 +142,10 @@ class PyreNode(object):
         p = self.peers.get(identity)
         if not p:
             # Purge any previous peer on same endpoint
+            endpoint = "%s:%u" %(ipaddr, port)
             for peer_id, peer in self.peers.copy().items():
-                if peer.endpoint == "%s:%u" %(ipaddr, port):
-                    self.purge_peer(peer)
+                self.purge_peer(peer, endpoint)
+
             p = PyrePeer(self._ctx, identity)
             self.peers[identity] = p
             #print("Require_peer: %s" %identity)
@@ -171,18 +185,20 @@ class PyreNode(object):
         command = cmds.pop(0).decode('UTF-8')
         if command == "WHISPER":
             # Get peer to send message to
-            peer = cmds.pop(0).decode('UTF-8')
+            peer = uuid.UUID(bytes=cmds.pop(0))
             # Send frame on out to peer's mailbox, drop message
             # if peer doesn't exist (may have been destroyed)
             if self.peers[peer]:
-                self.peers[peer].send_multipart(cmds, copy=False)
+                msg = ZreMsg(ZreMsg.WHISPER)
+                msg.set_address(peer)
+                msg.content = cmds
+                self.peers[peer].send(msg)
         elif command == "SHOUT":
             # Get group to send message to
             grpname = cmds.pop(0).decode('UTF-8')
             msg = ZreMsg(ZreMsg.SHOUT)
             msg.set_group(grpname)
             msg.content = cmds.pop(0)
-            #print("SHOUT: ", msg.content)
             if self.peer_groups.get(grpname):
                 self.peer_groups[grpname].send(msg)
             else:
@@ -255,7 +271,7 @@ class PyreNode(object):
         elif zmsg.id == ZreMsg.WHISPER:
             # Pass up to caller API as WHISPER event
             self._pipe.send_unicode("WHISPER", zmq.SNDMORE)
-            self._pipe.send_unicode(p.get_identity(), zmq.SNDMORE)
+            self._pipe.send(p.get_identity().bytes, zmq.SNDMORE)
             self._pipe.send(zmsg.content)
         elif zmsg.id == ZreMsg.SHOUT:
             # Pass up to caller API as WHISPER event
@@ -287,10 +303,8 @@ class PyreNode(object):
         peer = self.require_peer(peer_id, ipaddress.decode('UTF-8'), port)
         # if we receive a beacon with port 0 this means the peer exited
         if port == 0:
-            self._pipe.send_unicode("EXIT", flags=zmq.SNDMORE)
-            self._pipe.send(peer.get_identity().bytes)
-            # purge the peer (delete)
-            self.purge_peer(peer)
+            # remove the peer (delete)
+            self.remove_peer(peer)
         else:
             peer.refresh()
 
@@ -301,13 +315,7 @@ class PyreNode(object):
     def ping_peer(self, peer_id):
         p = self.peers.get(peer_id)
         if time.time() > p.expired_at:
-            self._pipe.send_unicode("EXIT", flags=zmq.SNDMORE)
-            self._pipe.send(p.get_identity().bytes)
-            # If peer has really vanished, expire it (delete)
-            self.purge_peer(p)
-            for grp in self.peer_groups.values():
-                self.delete_peer(p, grp)
-
+            self.remove_peer(p)
         elif time.time() > p.evasive_at:
             # If peer is being evasive, force a TCP ping.
             # TODO: do this only once for a peer in this state;
