@@ -67,7 +67,7 @@ class ZreMsg(object):
         if input_socket.socket_type == zmq.ROUTER:
             self.address = frames.pop(0)
             self.address = uuid.UUID(bytes=self.address)
-            print("ZreMsg id from router sock: %s" %self.address)
+            #print("ZreMsg id from router sock: %s" %self.address)
             if not self.address:
                 print("Empty or malformed")
         # Read and parse command in frame
@@ -78,7 +78,7 @@ class ZreMsg(object):
         if self._needle != 0:
             print("Message already decoded")
         self._ceil = len(self.struct_data)
-        print("ZreMsg recv: %s" %self.struct_data)
+        #print("ZreMsg recv: %s" %self.struct_data)
         signature = self._get_number2()
         if signature != (0xAAA0 | 1):
             print("invalid signature %s" %signature)
@@ -86,7 +86,7 @@ class ZreMsg(object):
 
         # Get message id and parse per message type
         self.id = self._get_number1();
-        print("ZreMsg id: %i" % self.id)
+        #print("ZreMsg id: %i" % self.id)
 
         if self.id == ZreMsg.HELLO:
             self.unpack_hello()

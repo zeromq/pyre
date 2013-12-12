@@ -61,7 +61,7 @@ class PyrePeer(object):
             msg.set_sequence(self.sent_sequence)
             #try:
             msg.send(self.mailbox)
-            print("PyrePeer send %s" %msg.struct_data)
+            #print("PyrePeer send %s" %msg.struct_data)
             #except Exception as e:
             #    print("msg send failed, %s" %e)
             #    self.disconnect()

@@ -302,8 +302,12 @@ class PyreNode(object):
         port = socket.ntohs(beacon[5])
         # if we receive a beacon with port 0 this means the peer exited
         if port == 0:
+            peer = self.peers.get(peer_id)
             # remove the peer (delete)
-            self.remove_peer(peer)
+            if peer:
+                self.remove_peer(peer)
+            else:
+                print("We don't know peer id: %s" %peer_id)
         else:
             peer = self.require_peer(peer_id, ipaddress.decode('UTF-8'), port)
             peer.refresh()
