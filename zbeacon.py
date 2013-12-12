@@ -261,7 +261,6 @@ class ZBeaconAgent(object):
                 #print("PIPED:")
             if self._udp_sock.fileno() in items and items[self._udp_sock.fileno()] == zmq.POLLIN:
                 self.recv()
-                #print("RECV")
 
             if self.transmit and time.time() >= self._ping_at:
                 self.send()
@@ -277,6 +276,11 @@ def zbeacon_test(ctx, pipe):
 if __name__ == '__main__':
     ctx = zmq.Context()
     beacon = ZBeacon(ctx, 1200)
+    import uuid
+    transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
+                               1, uuid.uuid4().bytes, 
+                               socket.htons(1300))
+    beacon.publish(transmit)
     beacon_pipe = beacon.get_socket()
     while True:
         try:
@@ -284,5 +288,6 @@ if __name__ == '__main__':
             print("BEACONMSG: %s" %msg)
         except (KeyboardInterrupt, SystemExit):
             break
+    del(beacon)
     print("FINISHED")
         
