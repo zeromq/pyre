@@ -138,7 +138,6 @@ class PyreNode(object):
     # Find or create peer via its UUID string
     def require_peer(self, identity, ipaddr, port):
         #  Purge any previous peer on same endpoint
-        # TODO match a uuid to a peer
         p = self.peers.get(identity)
         if not p:
             # Purge any previous peer on same endpoint
@@ -188,7 +187,7 @@ class PyreNode(object):
             peer = uuid.UUID(bytes=cmds.pop(0))
             # Send frame on out to peer's mailbox, drop message
             # if peer doesn't exist (may have been destroyed)
-            if self.peers[peer]:
+            if self.peers.get(peer):
                 msg = ZreMsg(ZreMsg.WHISPER)
                 msg.set_address(peer)
                 msg.content = cmds
