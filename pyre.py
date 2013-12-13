@@ -233,7 +233,11 @@ class PyreNode(object):
                 print("Node is leaving group %s" % grpname)
         elif command == "STOP":
             self.stop()
-            self._pipe.send_unicode("OK")
+            try:
+                self._pipe.send_unicode("OK", zmq.NOBLOCK)
+            except zmq.error.Again:
+                # other end of the pipe is already gone
+                pass
             self._terminated = True
         else:
             print('Unkown Node API command: %s' %command)
