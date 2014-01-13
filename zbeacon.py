@@ -122,11 +122,22 @@ class ZBeaconAgent(object):
         self._filter = self.transmit #not used?
         # Our own address
         self.address = None
-        # Our broadcast address, in case we do broascasting
-        self.broadcast = '255.255.255.255'
+        # Our announcement address
+        self.announce_addr = beacon_address
         #byte announcement [2] = (port_nbr >> 8) & 0xFF, port_nbr & 0xFF
+        self._init_socket()
+        # Send our hostname back to AP
+        # TODO This results in just the ip address and not sure if this is needed
+        self.address = socket.gethostbyname(socket.gethostname())
+        print(self.address)
+        print(self._udp_sock.getsockname())
+        print([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2]])
+        self._pipe.send_unicode(self.address)
+        self.run()
+    
+    def _init_socket(self):
         try:
-            if ipaddress.IPv4Address(beacon_address).is_multicast:
+            if ipaddress.IPv4Address(self.announce_addr).is_multicast:
                 # TTL
                 self._udp_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
                 # TODO: This should only be used if we do not have inproc method! 
@@ -151,29 +162,28 @@ class ZBeaconAgent(object):
                 # Maximum memberships: /proc/sys/net/ipv4/igmp_max_memberships 
                 # self._udp_sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, 
                 #       socket.inet_aton("225.25.25.25") + socket.inet_aton(host))
-                group = socket.inet_aton(beaconAddress)
+                group = socket.inet_aton(self.announce_addr)
                 mreq = struct.pack('4sL', group, socket.INADDR_ANY)
-                self._udp_sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, 
-                       mreq)
-                self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-                self._udp_sock.bind((beaconAddress, self._port))
-                self._dstAddr = beaconAddress
+                self._udp_sock.setsockopt(socket.SOL_IP, 
+                                          socket.IP_ADD_MEMBERSHIP, mreq)
+                self._udp_sock.setsockopt(socket.SOL_SOCKET, 
+                                          socket.SO_REUSEADDR, 1)
+                #  On some platforms we have to ask to reuse the port
+                try: 
+                    socket.self._udp_sock.setsockopt(socket.SOL_SOCKET, 
+                                          socket.SO_REUSEPORT, 1)
+                except AttributeError:
+                    pass
+                self._udp_sock.bind((self.announce_addr, self._port))
             else:
                 # Only for broadcast
-                print("Setting up a broadcast beacon on %s:%s" %(self.broadcast, self._port))
+                print("Setting up a broadcast beacon on %s:%s" %(self.announce_addr, self._port))
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)       
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-                self._udp_sock.bind((self.broadcast, self._port))
-                self._dstAddr = self.broadcast
+                self._udp_sock.bind((self.announce_addr, self._port))
         except socket.error as msg:
             print(msg)
-        # Send our hostname back to AP
-        # TODO This results in just the ip address and not sure if this is needed
-        self.address = socket.gethostbyname(socket.gethostname())
-        self._pipe.send_unicode(self.address)
-        self.run()
 
     def __del__(self):
         self._udp_sock.close()
@@ -215,7 +225,13 @@ class ZBeaconAgent(object):
 
 
     def send(self):
-        self._udp_sock.sendto(self.transmit, (self._dstAddr, self._port))
+        try:
+            self._udp_sock.sendto(self.transmit, (self.announce_addr, self._port))
+        except OSError:
+            print("Network seems gone, reinitialising the socket")
+            self._init_socket()
+            # if failed after reinit an exception will be raised
+            self._udp_sock.sendto(self.transmit, (self.announce_addr, self._port))
 
     def recv(self):
         try:
