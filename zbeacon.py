@@ -98,7 +98,7 @@ class ZBeacon(object):
 
 class ZBeaconAgent(object):
 
-    def __init__(self, ctx, pipe, port, beacon_address="255.255.255.255"):
+    def __init__(self, ctx, pipe, port, beacon_address=""):
         # Socket to talk back to application
         self._pipe = pipe
         # UDP socket for send/recv
@@ -123,7 +123,7 @@ class ZBeaconAgent(object):
         # Our own address
         self.address = None
         # Our broadcast address, in case we do broascasting
-        self.broadcast = '255.255.255.255'
+        self.broadcast = '<broadcast>'
         #byte announcement [2] = (port_nbr >> 8) & 0xFF, port_nbr & 0xFF
         try:
             if ipaddress.IPv4Address(beacon_address).is_multicast:
