@@ -156,7 +156,11 @@ class ZBeaconAgent(object):
                 self._udp_sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, 
                        mreq)
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+                try:
+                    self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+                except AttributeError:
+                    # Some platforms don't support SO_REUSEPORT
+                    pass
                 self._udp_sock.bind((beaconAddress, self._port))
                 self._dstAddr = beaconAddress
             else:
@@ -164,7 +168,11 @@ class ZBeaconAgent(object):
                 print("Setting up a broadcast beacon on %s:%s" %(self.broadcast, self._port))
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)       
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+                try:
+                    self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+                except AttributeError:
+                    # Some platforms don't support SO_REUSEPORT
+                    pass
                 self._udp_sock.bind((self.broadcast, self._port))
                 self._dstAddr = self.broadcast
         except socket.error as msg:
