@@ -126,7 +126,7 @@ class ZBeaconAgent(object):
         self.broadcast = '<broadcast>'
         #byte announcement [2] = (port_nbr >> 8) & 0xFF, port_nbr & 0xFF
         try:
-            if ipaddress.IPv4Address(beacon_address).is_multicast:
+            if beacon_address and ipaddress.IPv4Address(beacon_address).is_multicast:
                 # TTL
                 self._udp_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
                 # TODO: This should only be used if we do not have inproc method! 
@@ -151,7 +151,7 @@ class ZBeaconAgent(object):
                 # Maximum memberships: /proc/sys/net/ipv4/igmp_max_memberships 
                 # self._udp_sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, 
                 #       socket.inet_aton("225.25.25.25") + socket.inet_aton(host))
-                group = socket.inet_aton(beaconAddress)
+                group = socket.inet_aton(beacon_address)
                 mreq = struct.pack('4sL', group, socket.INADDR_ANY)
                 self._udp_sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, 
                        mreq)
@@ -161,8 +161,8 @@ class ZBeaconAgent(object):
                 except AttributeError:
                     # Some platforms don't support SO_REUSEPORT
                     pass
-                self._udp_sock.bind((beaconAddress, self._port))
-                self._dstAddr = beaconAddress
+                self._udp_sock.bind((beacon_address, self._port))
+                self._dstAddr = self.broadcast
             else:
                 # Only for broadcast
                 print("Setting up a broadcast beacon on %s:%s" %(self.broadcast, self._port))
@@ -173,7 +173,7 @@ class ZBeaconAgent(object):
                 except AttributeError:
                     # Some platforms don't support SO_REUSEPORT
                     pass
-                self._udp_sock.bind((self.broadcast, self._port))
+                self._udp_sock.bind((beacon_address, self._port))
                 self._dstAddr = self.broadcast
         except socket.error as msg:
             print(msg)
