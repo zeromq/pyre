@@ -129,9 +129,6 @@ class ZBeaconAgent(object):
         # Send our hostname back to AP
         # TODO This results in just the ip address and not sure if this is needed
         self.address = socket.gethostbyname(socket.gethostname())
-        print(self.address)
-        print(self._udp_sock.getsockname())
-        print([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2]])
         self._pipe.send_unicode(self.address)
         self.run()
     
@@ -180,7 +177,12 @@ class ZBeaconAgent(object):
                 print("Setting up a broadcast beacon on %s:%s" %(self.announce_addr, self._port))
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)       
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+                #  On some platforms we have to ask to reuse the port
+                try: 
+                    socket.self._udp_sock.setsockopt(socket.SOL_SOCKET, 
+                                          socket.SO_REUSEPORT, 1)
+                except AttributeError:
+                    pass
                 self._udp_sock.bind((self.announce_addr, self._port))
         except socket.error as msg:
             print(msg)

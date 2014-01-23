@@ -15,7 +15,7 @@ All incoming events are messages delivered via the recv call of a Pyre
 instance. The first frame defines the type of the message, and following
 frames provide further values:
 
-    ENTER fromnode headers
+    ENTER from node headers
         a new peer has entered the network
     EXIT fromnode
         a peer has left the network
