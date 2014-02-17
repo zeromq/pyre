@@ -113,9 +113,9 @@ shout().
                     if message.decode('utf-8') == "quit":
                         break
                     print("CHAT_TASK: %s" % message)
-                    n.shout("CHAT", message)
-                if n.get_socket() in items and items[n.get_socket()] == zmq.POLLIN:
-                    cmds = n.get_socket().recv_multipart()
+                    node.shout("CHAT", message)
+                if node.get_socket() in items and items[node.get_socket()] == zmq.POLLIN:
+                    cmds = node.get_socket().recv_multipart()
                     type = cmds.pop(0)
                     print("-------------------------------------")
                     print("NODE_MSG TYPE: %s" % type)
@@ -134,7 +134,7 @@ shout().
         chat_pipe = zhelper.zthread_fork(ctx, chat_task)
         while True:
             try:
-                msg = input()
+                msg = raw_input()
                 chat_pipe.send(msg.encode('utf_8'))
             except (KeyboardInterrupt, SystemExit):
                 break
