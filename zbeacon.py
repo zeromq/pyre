@@ -98,7 +98,7 @@ class ZBeacon(object):
 
 class ZBeaconAgent(object):
 
-    def __init__(self, ctx, pipe, port, beacon_address="255.255.255.255"):
+    def __init__(self, ctx, pipe, port, beacon_address=""):
         # Socket to talk back to application
         self._pipe = pipe
         # UDP socket for send/recv
@@ -134,7 +134,7 @@ class ZBeaconAgent(object):
     
     def _init_socket(self):
         try:
-            if ipaddress.IPv4Address(self.announce_addr).is_multicast:
+            if self.announce_addr and ipaddress.IPv4Address(self.announce_addr).is_multicast:
                 # TTL
                 self._udp_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
                 # TODO: This should only be used if we do not have inproc method! 
@@ -167,7 +167,7 @@ class ZBeaconAgent(object):
                                           socket.SO_REUSEADDR, 1)
                 #  On some platforms we have to ask to reuse the port
                 try: 
-                    socket.self._udp_sock.setsockopt(socket.SOL_SOCKET, 
+                    self._udp_sock.setsockopt(socket.SOL_SOCKET, 
                                           socket.SO_REUSEPORT, 1)
                 except AttributeError:
                     pass
@@ -179,7 +179,7 @@ class ZBeaconAgent(object):
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 #  On some platforms we have to ask to reuse the port
                 try: 
-                    socket.self._udp_sock.setsockopt(socket.SOL_SOCKET, 
+                    self._udp_sock.setsockopt(socket.SOL_SOCKET, 
                                           socket.SO_REUSEPORT, 1)
                 except AttributeError:
                     pass
@@ -228,7 +228,7 @@ class ZBeaconAgent(object):
 
     def send(self):
         try:
-            self._udp_sock.sendto(self.transmit, (self.announce_addr, self._port))
+            self._udp_sock.sendto(self.transmit, ('<broadcast>', self._port))
         except OSError:
             print("Network seems gone, reinitialising the socket")
             self._init_socket()
