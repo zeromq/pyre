@@ -26,6 +26,7 @@ import zmq
 import time
 import struct
 import ipaddress
+import os
 # local modules
 from . import zhelper
 
@@ -98,7 +99,7 @@ class ZBeacon(object):
 
 class ZBeaconAgent(object):
 
-    def __init__(self, ctx, pipe, port, beacon_address="255.255.255.255"):
+    def __init__(self, ctx, pipe, port, announce_addr="255.255.255.255"):
         # Socket to talk back to application
         self._pipe = pipe
         # UDP socket for send/recv
@@ -123,7 +124,7 @@ class ZBeaconAgent(object):
         # Our own address
         self.address = None
         # Our announcement address
-        self.announce_addr = beacon_address
+        self.announce_addr = announce_addr
         #byte announcement [2] = (port_nbr >> 8) & 0xFF, port_nbr & 0xFF
         self._init_socket()
         # Send our hostname back to AP
@@ -183,7 +184,10 @@ class ZBeaconAgent(object):
                                           socket.SO_REUSEPORT, 1)
                 except AttributeError:
                     pass
-                self._udp_sock.bind((self.announce_addr, self._port))
+                if os.name == 'nt':
+                    self._udp_sock.bind(("0.0.0.0", self._port))
+                else:
+                    self._udp_sock.bind((self.announce_addr, self._port))
         except socket.error as msg:
             print(msg)
 

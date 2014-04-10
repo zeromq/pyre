@@ -296,12 +296,18 @@ class ZreMsg(object):
         num = struct.unpack_from('>Q', self.struct_data , offset=self._needle)
         self._needle += struct.calcsize('>Q')
         return num[0]
-    
+
+    def _get_long_string(self):
+        s_len = self._get_number4()
+        s = struct.unpack_from(str(s_len)+'s', self.struct_data , offset=self._needle)
+        self._needle += struct.calcsize('s'* s_len)
+        return s[0].decode('UTF-8')
+
     def _put_string(self, s):
         self._put_number1(len(s))
         d = struct.pack('%is' %len(s), s.encode('UTF-8'))
         self.struct_data += d
-    
+
     def _put_number1(self, nr):
         d = struct.pack('>b', nr)
         self.struct_data += d
@@ -309,7 +315,7 @@ class ZreMsg(object):
     def _put_number2(self, nr):
         d = struct.pack('>H', nr)
         self.struct_data += d
-    
+
     def _put_number4(self, nr):
         d = struct.pack('>I', nr)
         self.struct_data += d
@@ -317,7 +323,12 @@ class ZreMsg(object):
     def _put_number8(self, nr):
         d = struct.pack('>Q', nr)
         self.struct_data += d
-    
+
+    def _put_long_string(self, s):
+        self._put_number4(len(s))
+        d = struct.pack('%is' %len(s), s.encode('UTF-8'))
+        self.struct_data += d
+
     def _zre_dictstring_to_dict(self, s):
         l = s.split("=")
         return { l[0]: l[1] }
@@ -347,7 +358,7 @@ class ZreMsg(object):
         #print("grouplen: ", group_len)
         self.groups = []
         for x in range(group_len):
-            self.groups.append(self._get_string())
+            self.groups.append(self._get_long_string())
         #print(self.groups)
         #print("post_group: needle is at: %i"% self._needle )
         self.status = self._get_number1()
@@ -380,13 +391,13 @@ class ZreMsg(object):
         self._put_number2(self.sequence)
         self._put_string(self.ipaddress)
         self._put_number2(self.mailbox)
-        self._put_number1(len(self.groups))
+        self._put_number4(len(self.groups))
         for g in self.groups:
-            self._put_string(g)
+            self._put_long_string(g)
         self._put_number1(self.status)
-        self._put_number1(len(self.headers))
+        self._put_number4(len(self.headers))
         for key, val in self.headers.items():
-            self._put_string("%s=%s" %(key, val))
+            self._put_long_string("%s=%s" %(key, val))
 
 if __name__ == '__main__':
     testdata = struct.pack('Hb3sHbb2sb2sb2sbbb3sb3s',
