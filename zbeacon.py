@@ -130,6 +130,17 @@ class ZBeaconAgent(object):
         # Send our hostname back to AP
         # TODO This results in just the ip address and not sure if this is needed
         self.address = socket.gethostbyname(socket.gethostname())
+        # fix for wrong ipaddress of host
+        if self.address.startswith('127'):
+            # find highest available ipaddress
+            netinf = zhelper.get_ifaddrs()
+            for iface in netinf:
+                # ipv4 only currently
+                for family in netinf[iface]:
+                    if family == 2:
+                        ipadr = ipaddress.IPv4Address(netinf[iface][family]['addr'])
+                        if ipadr > ipaddress.IPv4Address(self.address):
+                            self.address = netinf[iface][family]['addr']
         self._pipe.send_unicode(self.address)
         self.run()
     
