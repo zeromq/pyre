@@ -26,7 +26,7 @@ import zmq
 import time
 import struct
 import ipaddress
-import os
+from sys import platform
 # local modules
 from . import zhelper
 
@@ -184,7 +184,7 @@ class ZBeaconAgent(object):
                                           socket.SO_REUSEPORT, 1)
                 except AttributeError:
                     pass
-                if os.name == 'nt':
+                if platform.startswith("win") or  platform.startswith("darwin"):
                     self._udp_sock.bind(("0.0.0.0", self._port))
                 else:
                     self._udp_sock.bind((self.announce_addr, self._port))
