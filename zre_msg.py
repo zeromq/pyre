@@ -353,7 +353,7 @@ class ZreMsg(object):
         self.mailbox = self._get_number2()
         #print(self.mailbox)
         #print("needle is at: %i"% self._needle )
-        group_len = self._get_number1()
+        group_len = self._get_number4()
         #print("needle is at: %i"% self._needle )
         #print("grouplen: ", group_len)
         self.groups = []
