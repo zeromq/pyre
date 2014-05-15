@@ -37,6 +37,12 @@ To set a header value, use the set_header() method. To send a message
 to a single peer, use whisper(). To send a message to a group, use
 shout().
 
+## Installation
+
+For now use Pip:
+
+    pip install https://github.com/zeromq/pyre/archive/master.zip
+
 ## API
 
     import pyre
