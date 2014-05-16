@@ -24,7 +24,7 @@ class Pyre(object):
         self._pipe = zhelper.zthread_fork(self._ctx, PyreNode)
 
     def stop(self):
-        self._pipe.send_unicode("STOP")
+        self._pipe.send_unicode("STOP", flags=zmq.DONTWAIT)
 
     # Receive next message from node
     def recv(self):
@@ -234,7 +234,7 @@ class PyreNode(object):
         elif command == "STOP":
             self.stop()
             try:
-                self._pipe.send_unicode("OK", zmq.NOBLOCK)
+                self._pipe.send_unicode("OK", zmq.DONTWAIT)
             except zmq.error.Again:
                 # other end of the pipe is already gone
                 pass
