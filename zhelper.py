@@ -10,11 +10,13 @@ def zthread_fork(ctx, func, *args, **kwargs):
     pipe becomes unreadable. Returns pipe, or NULL if there was an error.
     """
     a = ctx.socket(zmq.PAIR)
-    a.linger = 0
+    a.set(zmq.LINGER, 0)
+    a.set(zmq.RCVHWM, 100)
+    a.set(zmq.SNDHWM, 100)
     b = ctx.socket(zmq.PAIR)
-    b.linger = 0
-    a.set_hwm(1)
-    b.set_hwm(1)
+    b.set(zmq.LINGER, 0)
+    b.set(zmq.RCVHWM, 100)
+    b.set(zmq.SNDHWM, 100)
     iface = "inproc://%s" % binascii.hexlify(os.urandom(8))
     a.bind(iface)
     b.connect(iface)
