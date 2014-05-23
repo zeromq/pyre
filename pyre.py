@@ -85,6 +85,9 @@ class PyreNode(object):
             print("ERROR setting up agent port")
         self.poller = zmq.Poller()
         self.identity = uuid.uuid4()
+        # Workaround for https://github.com/zeromq/zyre/commit/be684a14ec3198dea043749bf36e59962f7e5073
+        while self.identity.bytes[0] == 0:
+            self.identity = uuid.uuid4()
         print("myID: %s"% self.identity)
         self.beacon = zbeacon.ZBeacon(self._ctx, ZRE_DISCOVERY_PORT)
         # TODO: how do we set the header of the beacon?

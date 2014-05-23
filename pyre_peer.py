@@ -53,6 +53,7 @@ class PyrePeer(object):
             self.mailbox = None
             self.endpoint = None
             self.connected = False
+            self.ready = False
 
     # Send message to peer
     def send(self, msg):
