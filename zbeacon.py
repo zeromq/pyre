@@ -191,7 +191,7 @@ class ZBeaconAgent(object):
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 #  On some platforms we have to ask to reuse the port
                 try: 
-                    socket.self._udp_sock.setsockopt(socket.SOL_SOCKET, 
+                    self._udp_sock.setsockopt(socket.SOL_SOCKET, 
                                           socket.SO_REUSEPORT, 1)
                 except AttributeError:
                     pass
