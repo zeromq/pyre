@@ -1,8 +1,7 @@
 """ These are the zre_msg messages
     HELLO - Greet a peer so it can connect back to us
         sequence      number 2
-        ipaddress     string
-        mailbox       number 2
+        endpoint      string
         groups        strings
         status        number 1
         name          string
@@ -49,8 +48,7 @@ class ZreMsg(object):
         self.address = ""
         self.id = id
         self.sequence = 0
-        self.ipaddress = ""
-        self.mailbox = 0
+        self.endpoint = ""
         self.groups = ()
         self.group = None
         self.status = 0
@@ -167,38 +165,47 @@ class ZreMsg(object):
 
     # Send the HELLO to the output in one step
     def send_hello(self, output, sequence, ipaddress, mailbox, groups, status, headers):
+        print("E: NOT IMPLEMENTED")
         pass
     
     # Send the WHISPER to the output in one step
     def send_whisper(self, output, sequence, content):
+        print("E: NOT IMPLEMENTED")
         pass
     
     # Send the SHOUT to the output in one step
     def send_shout(self, output, sequence, group, content):
+        print("E: NOT IMPLEMENTED")
         pass
     
     # Send the JOIN to the output in one step
     def send_join(self, output, sequence, group, status):
+        print("E: NOT IMPLEMENTED")
         pass
     
     # Send the LEAVE to the output in one step
     def send_leave(self, sequence, group, status):
+        print("E: NOT IMPLEMENTED")
         pass
     
     # Send the PING to the output in one step
     def send_ping(self, output, sequence):
+        print("E: NOT IMPLEMENTED")
         pass
     
     #  Send the PING_OK to the output in one step
     def send_ping_ok(self, output, sequence):
+        print("E: NOT IMPLEMENTED")
         pass
     
     # Duplicate the zre_msg message
     def dup(self):
+        print("E: NOT IMPLEMENTED")
         pass
     
     # Print contents of message to stdout
     def dump(self):
+        print("E: NOT IMPLEMENTED")
         pass
     
     # Get/set the message address
@@ -210,9 +217,11 @@ class ZreMsg(object):
     
     # Get the zre_msg id and printable command
     def get_id(self):
+        print("E: NOT IMPLEMENTED")
         pass
     
     def set_id(self, id):
+        print("E: NOT IMPLEMENTED")
         pass
     
     def get_name(self):
@@ -222,6 +231,7 @@ class ZreMsg(object):
         self.name = name
     
     def command(self):
+        print("E: NOT IMPLEMENTED")
         pass
     
     # Get/set the sequence field
@@ -231,20 +241,13 @@ class ZreMsg(object):
     def set_sequence(self, sequence):
         self.sequence = sequence
     
-    # Get/set the ipaddress field
-    def get_ipaddress(self):
-        return self.ipaddress
+    # Get/set the endpoint field
+    def get_endpoint(self):
+        return self.endpoint
     
-    def set_ipaddress(self, ipaddr):
-        self.ipaddress = ipaddr
-    
-    # Get/set the mailbox field
-    def get_mailbox(self):
-        return self.mailbox
-    
-    def set_mailbox(self, port):
-        self.mailbox = port
-    
+    def set_endpoint(self, endpoint):
+        self.endpoint = endpoint
+        
     # Get/set the groups field
     def get_groups(self):
         return self.groups
@@ -345,8 +348,7 @@ class ZreMsg(object):
         """unpack a zre hello packet
         
         sequence      number 2
-        ipaddress     string
-        mailbox       number 2
+        endpoint      string
         groups        strings
         status        number 1
         name          string
@@ -356,11 +358,8 @@ class ZreMsg(object):
         self.sequence = self._get_number2()
         #print(self.sequence)
         #print("needle is at: %i"% self._needle )
-        self.ipaddress = self._get_string()
+        self.endpoint = self._get_string()
         #print(self.ipaddress)
-        #print("needle is at: %i"% self._needle )
-        self.mailbox = self._get_number2()
-        #print(self.mailbox)
         #print("needle is at: %i"% self._needle )
         group_len = self._get_number4()
         #print("needle is at: %i"% self._needle )
@@ -387,8 +386,7 @@ class ZreMsg(object):
         """Pack a zre hello packet
         
         sequence      number 2
-        ipaddress     string
-        mailbox       number 2
+        endpoint      string
         groups        strings
         status        number 1
         name          string
@@ -400,8 +398,7 @@ class ZreMsg(object):
         #self._put_number2(0xAAA0)
         #self._put_number1(self.id)
         self._put_number2(self.sequence)
-        self._put_string(self.ipaddress)
-        self._put_number2(self.mailbox)
+        self._put_string(self.endpoint)
         self._put_number4(len(self.groups))
         for g in self.groups:
             self._put_long_string(g)
@@ -415,8 +412,7 @@ if __name__ == '__main__':
     testdata = struct.pack('Hb3sHbb2sb2sb2sbbb3sb3s',
                            11,       # sequence
                            3,        # str length 
-                           b"192",   # ipaddress
-                           20123,    # mailbox
+                           b"192:20123",   # endpoint
                            3,        # groups len
                            2,b"g1",  # length + groupname
                            2,b"g2",  # length + groupname
