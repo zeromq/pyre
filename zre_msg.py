@@ -5,6 +5,7 @@
         mailbox       number 2
         groups        strings
         status        number 1
+        name          string
         headers       dictionary
     WHISPER - Send a message to a peer
         sequence      number 2
@@ -213,6 +214,12 @@ class ZreMsg(object):
     
     def set_id(self, id):
         pass
+    
+    def get_name(self):
+        return self.name
+    
+    def set_name(self, name):
+        self.name = name
     
     def command(self):
         pass
