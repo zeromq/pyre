@@ -12,6 +12,7 @@ class PyrePeer(object):
         self.mailbox = None      # Socket through to peer
         self.identity = identity # Identity UUID
         self.endpoint = None     # Endpoint connected to
+        self.name = ""           # Peer's public name
         self.evasive_at = 0      # Peer is being evasive
         self.expired_at = 0      # Peer has expired by now
         self.connected = False   # Peer will send messages
@@ -27,23 +28,28 @@ class PyrePeer(object):
     def connect(self, reply_to, endpoint):
         if self.connected:
             return
-        
+
         # Create new outgoing socket (drop any messages in transit)
         self.mailbox = zmq.Socket(self._ctx, zmq.DEALER)
         # Set our caller 'From' identity so that receiving node knows
         # who each message came from.
-        self.mailbox.setsockopt(zmq.IDENTITY, reply_to.bytes)
+        # Set our own identity on the socket so that receiving node
+        # knows who each message came from. Note that we cannot use
+        # the UUID directly as the identity since it may contain a
+        # zero byte at the start, which libzmq does not like for
+        # historical and arguably bogus reasons that it nonetheless
+        # enforces.
+        self.mailbox.setsockopt(zmq.IDENTITY, b'1' + reply_to.bytes)
         # Set a high-water mark that allows for reasonable activity
         self.mailbox.setsockopt(zmq.SNDHWM, PyrePeer.PEER_EXPIRED * 100)
         # Send messages immediately or return EAGAIN
         self.mailbox.setsockopt(zmq.SNDTIMEO, 0)
         # Connect through to peer node
-        #print("tcp://%s" %endpoint)
-        self.mailbox.connect("tcp://%s" %endpoint)
+        self.mailbox.connect(endpoint)
         self.endpoint = endpoint
         self.connected = True
         self.ready = False
-        
+
     # Disconnect peer mailbox
     # No more messages will be sent to peer until connected again
     def disconnect(self):
@@ -51,7 +57,7 @@ class PyrePeer(object):
         if (self.connected):
             self.mailbox.close()
             self.mailbox = None
-            self.endpoint = None
+            self.endpoint = ""
             self.connected = False
             self.ready = False
 
@@ -60,16 +66,11 @@ class PyrePeer(object):
         if self.connected:
             self.sent_sequence += 1
             msg.set_sequence(self.sent_sequence)
-            #try:
-            msg.send(self.mailbox)
-            #print("PyrePeer send %s" %msg.struct_data)
-            #except Exception as e:
-            #    print("msg send failed, %s" %e)
-            #    self.disconnect()
-            #zre_msg_set_sequence (*msg_p, ++(self->sent_sequence));
-            #if (zre_msg_send (msg_p, self->mailbox) && errno == EAGAIN) {
-                #self.disconnect()
-                #return -1;
+            try:
+                msg.send(self.mailbox)
+            except zmq.EAGAIN as e:
+                self.disconnect()
+                return -1
         else:
             print("Peer %s not connected" % peer)
 
@@ -94,12 +95,20 @@ class PyrePeer(object):
         self.expired_at = time.time() + self.PEER_EXPIRED
 
     # Return future evasive time
-    def evasiv_at(self):
+    def evasive_at(self):
         return self.evasive_at
 
     # Return future expired time
     def expired_at(self):
         return self.expired_at
+
+    # Return peer name
+    def get_name(self):
+        return self.name
+
+    # Set peer name
+    def set_name(self, name):
+        self.name = name
 
     # Return peer status
     def get_status(self):
@@ -120,6 +129,10 @@ class PyrePeer(object):
     # Get peer header value
     def get_header(self, key):
         return self.headers.get(key, None)
+
+    # Get peer headers
+    def get_headers(self):
+        return self.headers
 
     # Set peer headers
     def set_headers(self, headers):

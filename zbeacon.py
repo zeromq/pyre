@@ -64,7 +64,7 @@ class ZBeacon(object):
         self._pipe.send_unicode(interval)
 
     # Filter out any beacon that looks exactly like ours
-    def set_noecho(self):
+    def no_echo(self):
         self._pipe.send_unicode("NOECHO")
 
     # Start broadcasting beacon to peers at the specified interval
