@@ -35,7 +35,7 @@ STRING_MAX = 255
 
 class ZreMsg(object):
 
-    VERSION = 1
+    VERSION = 2
     HELLO   = 1
     WHISPER = 2
     SHOUT   = 3
@@ -53,6 +53,7 @@ class ZreMsg(object):
         self.groups = ()
         self.group = None
         self.status = 0
+        self.name = ""
         self.headers = {}
         self.content = b""
         self.struct_data = kwargs.get("data", b'')
@@ -341,6 +342,7 @@ class ZreMsg(object):
         mailbox       number 2
         groups        strings
         status        number 1
+        name          string
         headers       dictionary
         """
         #self._needle = 0
@@ -362,6 +364,7 @@ class ZreMsg(object):
         #print(self.groups)
         #print("post_group: needle is at: %i"% self._needle )
         self.status = self._get_number1()
+        self.name = self._get_string()
         headers_len = self._get_number1()
         self.headers = {}
         for x in range(headers_len):
@@ -381,6 +384,7 @@ class ZreMsg(object):
         mailbox       number 2
         groups        strings
         status        number 1
+        name          string
         headers       dictionary
         """
         # clear data
@@ -395,6 +399,7 @@ class ZreMsg(object):
         for g in self.groups:
             self._put_long_string(g)
         self._put_number1(self.status)
+        self._put_string(self.name)
         self._put_number4(len(self.headers))
         for key, val in self.headers.items():
             self._put_long_string("%s=%s" %(key, val))
