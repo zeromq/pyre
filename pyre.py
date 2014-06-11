@@ -12,7 +12,7 @@ from .zre_msg import ZreMsg
 from .pyre_peer import PyrePeer
 from .pyre_group import PyreGroup
 
-BEACON_VERSION = 1
+BEACON_VERSION = 2
 ZRE_DISCOVERY_PORT = 5670
 REAP_INTERVAL = 1.0  # Once per second
 
@@ -78,8 +78,10 @@ class PyreNode(object):
         self._ctx = ctx
         self._pipe = pipe
         self._terminated = False
+        self.interval = 0
         self.inbox = ctx.socket(zmq.ROUTER)
-        self.port = self.inbox.bind_to_random_port("tcp://*")
+        self.endpoint = ""
+        self.port = self.inbox.bind(self.endpoint)
         self.status = 0
         if self.port < 0:
             print("ERROR setting up agent port")
@@ -89,10 +91,21 @@ class PyreNode(object):
         while self.identity.bytes[0] == 0:
             self.identity = uuid.uuid4()
         print("myID: %s"% self.identity)
-        self.beacon = zbeacon.ZBeacon(self._ctx, ZRE_DISCOVERY_PORT)
-        # TODO: how do we set the header of the beacon?
-        # line 299 zbeacon.c
-        self.beacon.set_noecho()
+        # If application didn't bind explicitly, we grab an ephemeral port
+        # on all available network interfaces. This is orthogonal to
+        # beaconing, since we can connect to other peers and they will
+        # gossip our endpoint to others.
+        if not self.bound:
+            self.port = self.inbox.bind("tcp://*:*")
+            if self.port < 0:
+                print("ERROR setting up agent port")
+            else:
+                self.bound = true
+        if self.beacon_port:
+            self.beacon = zbeacon.ZBeacon(self._ctx, ZRE_DISCOVERY_PORT)
+        if self.interval:
+            self.beacon.set_interval(self.interval)
+
         # construct a header
         transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
                                BEACON_VERSION, self.identity.bytes, 
@@ -115,12 +128,14 @@ class PyreNode(object):
         # destroy beacon
 
     def stop(self):
-        stop_transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
-                               BEACON_VERSION, self.identity.bytes, 
-                               socket.htons(0))
-        self.beacon.publish(stop_transmit)
-        # Give time for beacon to go out
-        time.sleep(0.001)
+        if self.beacon:
+            stop_transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
+                                   BEACON_VERSION, self.identity.bytes, 
+                                   socket.htons(0))
+            self.beacon.publish(stop_transmit)
+            # Give time for beacon to go out
+            time.sleep(0.001)
+        self.poller.unregister(self.beacon.get_socket())
 
     # Send message to all peers
     def send_peer(self, peer, msg):
@@ -140,12 +155,11 @@ class PyreNode(object):
         self.peers.pop(peer.get_identity())
 
     # Find or create peer via its UUID string
-    def require_peer(self, identity, ipaddr, port):
+    def require_peer(self, identity, endpoint):
         #  Purge any previous peer on same endpoint
         p = self.peers.get(identity)
         if not p:
             # Purge any previous peer on same endpoint
-            endpoint = "%s:%u" %(ipaddr, port)
             for peer_id, peer in self.peers.copy().items():
                 self.purge_peer(peer, endpoint)
 
@@ -154,10 +168,10 @@ class PyreNode(object):
             #print("Require_peer: %s" %identity)
             p.connect(self.identity, "%s:%u" %(ipaddr, port))
             m = ZreMsg(ZreMsg.HELLO)
-            m.set_ipaddress(self.host)
-            m.set_mailbox(self.port)
+            m.set_endpoint(self.endpoint)
             m.set_groups(self.own_groups.keys())
             m.set_status(self.status)
+            m.set_name(self.name)
             p.send(m)
 
             # Now tell the caller about the peer
@@ -257,7 +271,7 @@ class PyreNode(object):
         p = self.peers.get(id)
         #print(p, id)
         if zmsg.id == ZreMsg.HELLO:
-            p = self.require_peer(id, zmsg.get_ipaddress(), zmsg.get_mailbox())
+            p = self.require_peer(id, zmsg.get_endpoint())
             p.set_ready(True)
             #print("Hallo %s"%p)
 
@@ -316,7 +330,8 @@ class PyreNode(object):
             else:
                 print("We don't know peer id: %s" %peer_id)
         else:
-            peer = self.require_peer(peer_id, ipaddress.decode('UTF-8'), port)
+            endpoint = "tcp://%s:%d" %(ipaddress.decode('UTF-8'), port)
+            peer = self.require_peer(peer_id, endpoint)
             peer.refresh()
 
     #  Remove peer from group, if it's a member
