@@ -146,7 +146,7 @@ class ZBeaconAgent(object):
     
     def _init_socket(self):
         try:
-            if ipaddress.IPv4Address(self.announce_addr).is_multicast:
+            if ipaddress.IPv4Address(unicode(self.announce_addr)).is_multicast:
                 # TTL
                 self._udp_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
                 # TODO: This should only be used if we do not have inproc method! 
