@@ -206,7 +206,11 @@ def get_ifaddrs():
         if name not in result:
             result[name] = {}
 
-        sa = sockaddr.from_address(ifa.ifa_addr)
+        if ifa.ifa_addr:
+            sa = sockaddr.from_address(ifa.ifa_addr)
+        
+        else:
+            break
 
         data = {}
 
