@@ -31,11 +31,6 @@ def zthread_fork(ctx, func, *args, **kwargs):
 
     return a
 
-def zmsg_print(msg):
-    print("--------------------------------------")
-    for m in msg:
-        print("[%03d] %s" %(len(m), m))
-
 
 from ctypes import *
 from sys import platform
