@@ -27,11 +27,16 @@ import time
 import struct
 import ipaddress
 from sys import platform
+import logging
+
 # local modules
 from . import zhelper
 
 BEACON_MAX      = 255   # Max size of beacon data
 INTERVAL_DFLT   = 1.0   # Default interval = 1 second
+
+logger = logging.getLogger(__name__)
+
 
 class ZBeacon(object):
 
@@ -56,7 +61,8 @@ class ZBeacon(object):
         msg=b''
         while(msg!=b'OK'):
             msg = self._pipe.recv()
-        print("Terminating zbeacon")
+
+        logger.debug("Terminating zbeacon")
 
     # Set broadcast interval in milliseconds (default is 1000 msec)
     def set_interval(self, interval=INTERVAL_DFLT):
@@ -80,7 +86,8 @@ class ZBeacon(object):
     def subscribe(self, filter):
         self._pipe.send_unicode("SUBSCRIBE", flags=zmq.SNDMORE)
         if (len(filter) > BEACON_MAX):
-            print("ERROR: filter size is too big")
+            logger.debug("Filter size is too big")
+
         else:
             self._pipe.send(filter)
 
@@ -186,7 +193,8 @@ class ZBeaconAgent(object):
                 self._udp_sock.bind((self.announce_addr, self._port))
             else:
                 # Only for broadcast
-                print("Setting up a broadcast beacon on %s:%s" %(self.announce_addr, self._port))
+                logger.debug("Setting up a broadcast beacon on {0}:{1}".format(self.announce_addr, self._port))
+
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)       
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 #  On some platforms we have to ask to reuse the port
@@ -199,8 +207,9 @@ class ZBeaconAgent(object):
                     self._udp_sock.bind(("0.0.0.0", self._port))
                 else:
                     self._udp_sock.bind((self.announce_addr, self._port))
+
         except socket.error as msg:
-            print(msg)
+            logger.exception("Initializing of {0} raised an exception".format(self.__class__.__name__))
 
     def __del__(self):
         self._udp_sock.close()
@@ -216,36 +225,45 @@ class ZBeaconAgent(object):
 
     def api_command(self):
         cmds = self._pipe.recv_multipart()
-        #print("ZBeaconApiCommand: %s" %cmds)
+
+        logger.debug("ZBeaconApiCommand: {0}".format(cmds))
+
         cmd = cmds.pop(0)
         cmd = cmd.decode('UTF-8')
         if cmd == "INTERVAL":
             self._interval = atoi(cmds.pop(0))
+
         elif cmd == "NOECHO":
             self._noecho = True
+
         elif cmd == "PUBLISH":
             self.transmit = cmds.pop(0)
-            #print(self.transmit)
             # start broadcasting immediately
             self._ping_at = time.time()
+
         elif cmd == "SILENCE":
             self.transmit = None
+
         elif cmd == "SUBSCRIBE":
             self._filter = cmds.pop(0)
+
         elif cmd == "UNSUBSCRIBE":
             self.filter = None
+
         elif cmd == "TERMINATE":
             self._terminated = True
             self._pipe.send_unicode("OK")
-        else:
-            print("E: unexpected API command '%s, %s'"%(cmd, cmds))
 
+        else:
+            logger.debug("Unexpected API command {0}, {1}".format(cmd, cmds))
 
     def send(self):
         try:
             self._udp_sock.sendto(self.transmit, (self.announce_addr, self._port))
+
         except OSError:
-            print("Network seems gone, reinitialising the socket")
+            logger.debug("Network seems gone, reinitialising the socket")
+
             self._init_socket()
             # if failed after reinit an exception will be raised
             self._udp_sock.sendto(self.transmit, (self.announce_addr, self._port))
@@ -253,8 +271,9 @@ class ZBeaconAgent(object):
     def recv(self):
         try:
             data, addr = self._udp_sock.recvfrom(BEACON_MAX)
+
         except socket.error as e:
-            print(e)
+            logger.exception("Exception while receiving")
 
         # Get sender address as printable string
         peername = addr[0]
@@ -262,23 +281,28 @@ class ZBeaconAgent(object):
         if self._filter:
             if len(self._filter) < len(data):
                 match_data = data[:len(self._filter)]
+
                 if (match_data != self._filter):
-                    print("Received beacon doesn't match filter, discarding")
+                    logger.debug("Received beacon doesn't match filter, discarding")
                     return
+
         # If noEcho is set, check if beacon is our own
         if self._noecho:
             if self.transmit == data:
-                #print("this is our own beacon, ignoring")
+                logger.debug("Received our own beacon, ignoring")
                 return
+
         # send the data onto the pipe
         self._pipe.send_unicode(peername, zmq.SNDMORE)
         self._pipe.send(data)
 
     def run(self):
-        print("ZBeacon runnning")
+        logger.debug("ZBeacon runnning")
+
         self.poller = zmq.Poller()
         self.poller.register(self._pipe, zmq.POLLIN)
         self.poller.register(self._udp_sock, zmq.POLLIN)
+
         # not interrupted
         while(True):
             timeout = -1
@@ -291,7 +315,7 @@ class ZBeaconAgent(object):
 
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
                 self.api_command()
-                #print("PIPED:")
+
             if self._udp_sock.fileno() in items and items[self._udp_sock.fileno()] == zmq.POLLIN:
                 self.recv()
 
@@ -301,7 +325,8 @@ class ZBeaconAgent(object):
 
             if self._terminated:
                 break
-        print("ZBeaconAgent terminated")
+
+        logger.debug("ZBeaconAgent terminated")
 
 def zbeacon_test(ctx, pipe):
     a = ZBeaconAgent(ctx, pipe, 1200)
@@ -315,12 +340,19 @@ if __name__ == '__main__':
                                socket.htons(1300))
     beacon.publish(transmit)
     beacon_pipe = beacon.get_socket()
+
+    # Create a StreamHandler for debugging
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.DEBUG)
+
     while True:
         try:
             msg = beacon_pipe.recv()
-            print("BEACONMSG: %s" %msg)
+            logger.debug("BEACONMSG: %s".format(msg))
+
         except (KeyboardInterrupt, SystemExit):
             break
+
     del(beacon)
-    print("FINISHED")
+    logger.debug("FINISHED")
         
