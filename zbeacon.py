@@ -4,21 +4,21 @@
 #   -------------------------------------------------------------------------
 #   Copyright (c) 1991-2013 iMatix Corporation <www.imatix.com>
 #   Copyright other contributors as noted in the AUTHORS file.
-# 
+#
 #   This file is part of PyZyre, the ZYRE Python implementation:
 #   http://github.com/sphaero/pyzyre & http://czmq.zeromq.org.
-# 
+#
 #   This is free software; you can redistribute it and/or modify it under
-#   the terms of the GNU Lesser General Public License as published by the 
-#   Free Software Foundation; either version 3 of the License, or (at your 
+#   the terms of the GNU Lesser General Public License as published by the
+#   Free Software Foundation; either version 3 of the License, or (at your
 #   option) any later version.
 #
 #   This software is distributed in the hope that it will be useful, but
 #   WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABIL-
-#   ITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General 
+#   ITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General
 #   Public License for more details.
 #
-#   You should have received a copy of the GNU Lesser General Public License 
+#   You should have received a copy of the GNU Lesser General Public License
 #   along with this program. If not, see <http://www.gnu.org/licenses/>.
 #   =========================================================================
 import socket
@@ -27,11 +27,16 @@ import time
 import struct
 import ipaddress
 from sys import platform
+import logging
+
 # local modules
 from . import zhelper
 
-BEACON_MAX      = 255   # Max size of beacon data
-INTERVAL_DFLT   = 1.0   # Default interval = 1 second
+BEACON_MAX = 255      # Max size of beacon data
+INTERVAL_DFLT = 1.0   # Default interval = 1 second
+
+logger = logging.getLogger(__name__)
+
 
 class ZBeacon(object):
 
@@ -40,8 +45,8 @@ class ZBeacon(object):
         self._port_nbr = port_nbr
         # Start beacon background agent
         self._pipe = zhelper.zthread_fork(
-                        self._ctx, 
-                        ZBeaconAgent, 
+                        self._ctx,
+                        ZBeaconAgent,
                         self._port_nbr,
                     )
         # Configure agent with arguments
@@ -53,10 +58,12 @@ class ZBeacon(object):
     def __del__(self):
         self._pipe.send_unicode("TERMINATE")
         # wait for confirmation
-        msg=b''
-        while(msg!=b'OK'):
+        msg = b''
+
+        while msg != b'OK':
             msg = self._pipe.recv()
-        print("Terminating zbeacon")
+
+        logger.debug("Terminating zbeacon")
 
     # Set broadcast interval in milliseconds (default is 1000 msec)
     def set_interval(self, interval=INTERVAL_DFLT):
@@ -80,7 +87,8 @@ class ZBeacon(object):
     def subscribe(self, filter):
         self._pipe.send_unicode("SUBSCRIBE", flags=zmq.SNDMORE)
         if (len(filter) > BEACON_MAX):
-            print("ERROR: filter size is too big")
+            logger.debug("Filter size is too big")
+
         else:
             self._pipe.send(filter)
 
@@ -120,7 +128,7 @@ class ZBeaconAgent(object):
         # struct.pack('cccb16sIb', b'Z',b'R',b'E', 1, uuid.bytes, self._port_nbr, 1)
         self.transmit = None
         # Beacon filter data
-        self._filter = self.transmit #not used?
+        self._filter = self.transmit  # not used?
         # Our own address
         self.address = None
         # Our announcement address
@@ -143,64 +151,79 @@ class ZBeaconAgent(object):
                             self.address = netinf[iface][family]['addr']
         self._pipe.send_unicode(self.address)
         self.run()
-    
+
     def _init_socket(self):
         try:
             if ipaddress.IPv4Address(self.announce_addr).is_multicast:
                 # TTL
                 self._udp_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-                # TODO: This should only be used if we do not have inproc method! 
+
+                # TODO: This should only be used if we do not have inproc method!
                 self._udp_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
-                # Usually, the system administrator specifies the 
-                # default interface multicast datagrams should be 
+
+                # Usually, the system administrator specifies the
+                # default interface multicast datagrams should be
                 # sent from. The programmer can override this and
                 # choose a concrete outgoing interface for a given
-                # socket with this option. 
+                # socket with this option.
                 #
                 # this results in the loopback address?
                 # host = socket.gethostbyname(socket.gethostname())
                 # self._udp_sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(host))
-                # You need to tell the kernel which multicast groups 
-                # you are interested in. If no process is interested 
-                # in a group, packets destined to it that arrive to 
-                # the host are discarded.            
-                # You can always fill this last member with the 
-                # wildcard address (INADDR_ANY) and then the kernel 
+                # You need to tell the kernel which multicast groups
+                # you are interested in. If no process is interested
+                # in a group, packets destined to it that arrive to
+                # the host are discarded.
+                # You can always fill this last member with the
+                # wildcard address (INADDR_ANY) and then the kernel
                 # will deal with the task of choosing the interface.
                 #
-                # Maximum memberships: /proc/sys/net/ipv4/igmp_max_memberships 
-                # self._udp_sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, 
+                # Maximum memberships: /proc/sys/net/ipv4/igmp_max_memberships
+                # self._udp_sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP,
                 #       socket.inet_aton("225.25.25.25") + socket.inet_aton(host))
+
                 group = socket.inet_aton(self.announce_addr)
                 mreq = struct.pack('4sL', group, socket.INADDR_ANY)
-                self._udp_sock.setsockopt(socket.SOL_IP, 
+
+                self._udp_sock.setsockopt(socket.SOL_IP,
                                           socket.IP_ADD_MEMBERSHIP, mreq)
-                self._udp_sock.setsockopt(socket.SOL_SOCKET, 
+
+                self._udp_sock.setsockopt(socket.SOL_SOCKET,
                                           socket.SO_REUSEADDR, 1)
+
                 #  On some platforms we have to ask to reuse the port
-                try: 
-                    socket.self._udp_sock.setsockopt(socket.SOL_SOCKET, 
-                                          socket.SO_REUSEPORT, 1)
+                try:
+                    socket.self._udp_sock.setsockopt(socket.SOL_SOCKET,
+                                                     socket.SO_REUSEPORT, 1)
+
                 except AttributeError:
                     pass
+
                 self._udp_sock.bind((self.announce_addr, self._port))
+
             else:
                 # Only for broadcast
-                print("Setting up a broadcast beacon on %s:%s" %(self.announce_addr, self._port))
-                self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)       
+                logger.debug("Setting up a broadcast beacon on {0}:{1}".format(self.announce_addr, self._port))
+
+                self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
                 #  On some platforms we have to ask to reuse the port
-                try: 
-                    self._udp_sock.setsockopt(socket.SOL_SOCKET, 
-                                          socket.SO_REUSEPORT, 1)
+                try:
+                    self._udp_sock.setsockopt(socket.SOL_SOCKET,
+                                              socket.SO_REUSEPORT, 1)
+
                 except AttributeError:
                     pass
+
                 if platform.startswith("win") or  platform.startswith("darwin"):
                     self._udp_sock.bind(("0.0.0.0", self._port))
+
                 else:
                     self._udp_sock.bind((self.announce_addr, self._port))
-        except socket.error as msg:
-            print(msg)
+
+        except socket.error:
+            logger.exception("Initializing of {0} raised an exception".format(self.__class__.__name__))
 
     def __del__(self):
         self._udp_sock.close()
@@ -216,36 +239,45 @@ class ZBeaconAgent(object):
 
     def api_command(self):
         cmds = self._pipe.recv_multipart()
-        #print("ZBeaconApiCommand: %s" %cmds)
+
+        logger.debug("ZBeaconApiCommand: {0}".format(cmds))
+
         cmd = cmds.pop(0)
         cmd = cmd.decode('UTF-8')
         if cmd == "INTERVAL":
-            self._interval = atoi(cmds.pop(0))
+            self._interval = int(cmds.pop(0))
+
         elif cmd == "NOECHO":
             self._noecho = True
+
         elif cmd == "PUBLISH":
             self.transmit = cmds.pop(0)
-            #print(self.transmit)
             # start broadcasting immediately
             self._ping_at = time.time()
+
         elif cmd == "SILENCE":
             self.transmit = None
+
         elif cmd == "SUBSCRIBE":
             self._filter = cmds.pop(0)
+
         elif cmd == "UNSUBSCRIBE":
             self.filter = None
+
         elif cmd == "TERMINATE":
             self._terminated = True
             self._pipe.send_unicode("OK")
-        else:
-            print("E: unexpected API command '%s, %s'"%(cmd, cmds))
 
+        else:
+            logger.debug("Unexpected API command {0}, {1}".format(cmd, cmds))
 
     def send(self):
         try:
             self._udp_sock.sendto(self.transmit, (self.announce_addr, self._port))
+
         except OSError:
-            print("Network seems gone, reinitialising the socket")
+            logger.debug("Network seems gone, reinitialising the socket")
+
             self._init_socket()
             # if failed after reinit an exception will be raised
             self._udp_sock.sendto(self.transmit, (self.announce_addr, self._port))
@@ -253,8 +285,9 @@ class ZBeaconAgent(object):
     def recv(self):
         try:
             data, addr = self._udp_sock.recvfrom(BEACON_MAX)
-        except socket.error as e:
-            print(e)
+
+        except socket.error:
+            logger.exception("Exception while receiving")
 
         # Get sender address as printable string
         peername = addr[0]
@@ -262,23 +295,27 @@ class ZBeaconAgent(object):
         if self._filter:
             if len(self._filter) < len(data):
                 match_data = data[:len(self._filter)]
+
                 if (match_data != self._filter):
-                    print("Received beacon doesn't match filter, discarding")
+                    logger.debug("Received beacon doesn't match filter, discarding")
                     return
-        # If noEcho is set, check if beacon is our own
+
+        # If noEcho is set, check if beacon is our own and ignore it.
         if self._noecho:
             if self.transmit == data:
-                #print("this is our own beacon, ignoring")
                 return
+
         # send the data onto the pipe
         self._pipe.send_unicode(peername, zmq.SNDMORE)
         self._pipe.send(data)
 
     def run(self):
-        print("ZBeacon runnning")
+        logger.debug("ZBeacon runnning")
+
         self.poller = zmq.Poller()
         self.poller.register(self._pipe, zmq.POLLIN)
         self.poller.register(self._udp_sock, zmq.POLLIN)
+
         # not interrupted
         while(True):
             timeout = -1
@@ -291,7 +328,7 @@ class ZBeaconAgent(object):
 
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
                 self.api_command()
-                #print("PIPED:")
+
             if self._udp_sock.fileno() in items and items[self._udp_sock.fileno()] == zmq.POLLIN:
                 self.recv()
 
@@ -301,26 +338,33 @@ class ZBeaconAgent(object):
 
             if self._terminated:
                 break
-        print("ZBeaconAgent terminated")
 
-def zbeacon_test(ctx, pipe):
-    a = ZBeaconAgent(ctx, pipe, 1200)
+        logger.debug("ZBeaconAgent terminated")
+
 
 if __name__ == '__main__':
     ctx = zmq.Context()
     beacon = ZBeacon(ctx, 1200)
     import uuid
-    transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
-                               1, uuid.uuid4().bytes, 
-                               socket.htons(1300))
+    transmit = struct.pack('cccb16sH', b'Z', b'R', b'E',
+                           1, uuid.uuid4().bytes,
+                           socket.htons(1300))
+
     beacon.publish(transmit)
     beacon_pipe = beacon.get_socket()
+
+    # Create a StreamHandler for debugging
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.DEBUG)
+
     while True:
         try:
             msg = beacon_pipe.recv()
-            print("BEACONMSG: %s" %msg)
+            logger.debug("BEACONMSG: %s".format(msg))
+
         except (KeyboardInterrupt, SystemExit):
             break
+
     del(beacon)
-    print("FINISHED")
-        
+
+    logger.debug("FINISHED")
