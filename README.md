@@ -102,12 +102,6 @@ For now use Pip:
     from pyre import zhelper
     import zmq
     import uuid
-    import logging
-
-    logger = logging.getLogger()
-
-    logger.addHandler(logging.StreamHandler())
-    logger.setLevel(logging.DEBUG)
 
 
     def chat_task(ctx, pipe):
@@ -128,7 +122,7 @@ For now use Pip:
                 if message.decode('utf-8') == "$$STOP":
                     break
 
-                logger.debug("CHAT_TASK: {0}".format(message))
+                print("CHAT_TASK: {0}".format(message))
 
                 n.shout("CHAT", message)
 
@@ -139,14 +133,14 @@ For now use Pip:
                 peer_uuid_bytes = cmds.pop(0)
                 peer_uuid = uuid.UUID(bytes=peer_uuid_bytes)
 
-                logger.debug("NODE_MSG TYPE: {0}".format(type))
-                logger.debug("NODE_MSG PEER: {0}".format(peer_uuid))
+                print("NODE_MSG TYPE: {0}".format(type))
+                print("NODE_MSG PEER: {0}".format(peer_uuid))
 
                 if type.decode('utf-8') == "SHOUT":
                     group_name = cmds.pop(0)
-                    logger.debug("NODE_MSG GROUP: {0}".format(group_name))
+                    print("NODE_MSG GROUP: {0}".format(group_name))
 
-                logger.debug("NODE_MSG CONT: {0}".format(cmds))
+                print("NODE_MSG CONT: {0}".format(cmds))
 
         n.stop()
     # end chat_task
@@ -166,7 +160,7 @@ For now use Pip:
 
         chat_pipe.send("$$STOP".encode('utf_8'))
 
-        logger.debug("FINISHED")
+        print("FINISHED")
 ```
 
 ## Project Organization
