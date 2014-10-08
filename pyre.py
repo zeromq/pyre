@@ -239,7 +239,7 @@ class PyreNode(object):
                 for peer in self.peers.values():
                     peer.send(msg)
 
-                logging.debug("Node is joining group {0}".format(grpname))
+                logger.debug("Node is joining group {0}".format(grpname))
 
         elif command == "LEAVE":
             grpname = cmds.pop(0).decode('UTF-8')
