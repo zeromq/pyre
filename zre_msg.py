@@ -30,8 +30,12 @@
 import struct
 import uuid
 import zmq
+import logging
 
 STRING_MAX = 255
+
+logger = logging.getLogger(__name__)
+
 
 class ZreMsg(object):
 
@@ -67,88 +71,104 @@ class ZreMsg(object):
         if input_socket.socket_type == zmq.ROUTER:
             self.address = frames.pop(0)
             self.address = uuid.UUID(bytes=self.address)
-            #print("ZreMsg id from router sock: %s" %self.address)
+
             if not self.address:
-                print("Empty or malformed")
+                logger.debug("Peer identity frame empty or malformed")
+
         # Read and parse command in frame
         self.struct_data = frames.pop(0)
         if not self.struct_data:
             return None
+
         # Get and check protocol signature
         if self._needle != 0:
-            print("Message already decoded")
+            logger.debug("Message already decoded for protocol signature")
+
         self._ceil = len(self.struct_data)
-        #print("ZreMsg recv: %s" %self.struct_data)
+
         signature = self._get_number2()
         if signature != (0xAAA0 | 1):
-            print("invalid signature %s" %signature)
+            logger.debug("Invalid signature {0}".format(signature))
             return None
 
         # Get message id and parse per message type
         self.id = self._get_number1();
-        #print("ZreMsg id: %i" % self.id)
 
         if self.id == ZreMsg.HELLO:
             self.unpack_hello()
+
         elif self.id == ZreMsg.WHISPER:
             self.sequence = self._get_number2()
             if len(frames):
                 self.content = frames.pop(0)
+
         elif self.id == ZreMsg.SHOUT:
             self.sequence = self._get_number2()
             self.group = self._get_string()
             if len(frames):
                 self.content = frames.pop(0)
+
         elif self.id == ZreMsg.JOIN:
             self.sequence = self._get_number2()
             self.group = self._get_string()
             self.status = self._get_number1()    
+
         elif self.id == ZreMsg.LEAVE:
             self.sequence = self._get_number2()
             self.group = self._get_string()
             self.status = self._get_number1()
+
         elif self.id == ZreMsg.PING:
             self.sequence = self._get_number2()
+
         elif self.id == ZreMsg.PING_OK:
             self.sequence = self._get_number2()
+
         else:
-            print("I don't know ID: %i" %self.id)
+            logger.debug("Message type {0} unknown".format(self.id))
 
     # Send the zre_msg to the output, and destroy it
     def send(self, output_socket):
         # clear data
         self.struct_data = b''
         self._needle = 0
+
         # add signature
         self._put_number2(0xAAA0 | 1)
-        #print(self.struct_data)
+
         # add id
-        #print("ZreMsg: ", self.id)
         self._put_number1(self.id)
-        #print(self.struct_data)
+
         if self.id == ZreMsg.HELLO:
             self.pack_hello()
+
         elif self.id == ZreMsg.WHISPER:
             self._put_number2(self.sequence)
             # add content in a new frame
+
         elif self.id == ZreMsg.SHOUT:
             self._put_number2(self.sequence)
             self._put_string(self.group)
             # add content in a new frame
+
         elif self.id == ZreMsg.JOIN:
             self._put_number2(self.sequence)
             self._put_string(self.group)
             self._put_number1(self.status)
+
         elif self.id == ZreMsg.LEAVE:
             self._put_number2(self.sequence)
             self._put_string(self.group)
             self._put_number1(self.status)
+
         elif self.id == ZreMsg.PING:
             self._put_number2(self.sequence)
+
         elif self.id == ZreMsg.PING_OK:
             self._put_number2(self.sequence)
+
         else:
-            print("I don't know ID: %i" %self.id)
+            logger.debug("Message type {0} unknown".format(self.id))
 
         # If we're sending to a ROUTER, we send the address first
         if output_socket.socket_type == zmq.ROUTER:
@@ -400,6 +420,9 @@ class ZreMsg(object):
             self._put_long_string("%s=%s" %(key, val))
 
 if __name__ == '__main__':
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.DEBUG)
+
     testdata = struct.pack('Hb3sHbb2sb2sb2sbbb3sb3s',
                            11,       # sequence
                            3,        # str length 
@@ -414,12 +437,15 @@ if __name__ == '__main__':
                            3,b"a=z", # length + dict
                            3,b"b=x"  # length + dict
                            )
-    print("New ZRE HELLO message")
+    logger.debug("New ZRE HELLO message")
     m = ZreMsg(ZreMsg.HELLO, data=testdata)
-    print("Unpack a HELLO message")
+
+    logger.debug("Unpack a HELLO message")
     m.unpack_hello()
-    print("Pack a HELLO message")
+
+    logger.debug("Pack a HELLO message")
     m.pack_hello()
-    print("Unpack the packed HELLO message")
+
+    logger.debug("Unpack the packed HELLO message")
     m.unpack_hello()
     
