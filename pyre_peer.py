@@ -1,5 +1,9 @@
 import time
 import zmq
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class PyrePeer(object):
     
@@ -37,9 +41,13 @@ class PyrePeer(object):
         self.mailbox.setsockopt(zmq.SNDHWM, PyrePeer.PEER_EXPIRED * 100)
         # Send messages immediately or return EAGAIN
         self.mailbox.setsockopt(zmq.SNDTIMEO, 0)
+
+        tcp_endpoint = "tcp://{0}".format(endpoint)
+
         # Connect through to peer node
-        #print("tcp://%s" %endpoint)
-        self.mailbox.connect("tcp://%s" %endpoint)
+        logger.debug("Connecting to peer {0} on endpoint {1}".format(self.identity, tcp_endpoint))
+
+        self.mailbox.connect(tcp_endpoint)
         self.endpoint = endpoint
         self.connected = True
         self.ready = False
@@ -62,7 +70,9 @@ class PyrePeer(object):
             msg.set_sequence(self.sent_sequence)
             #try:
             msg.send(self.mailbox)
-            #print("PyrePeer send %s" %msg.struct_data)
+
+            logger.debug("Sending to peer {0} message {1}".format(self.identity, msg.struct_data))
+
             #except Exception as e:
             #    print("msg send failed, %s" %e)
             #    self.disconnect()
@@ -71,7 +81,8 @@ class PyrePeer(object):
                 #self.disconnect()
                 #return -1;
         else:
-            print("Peer %s not connected" % peer)
+            logger.debug("Peer {0} is not connected".format(self.identity))
+
 
     # Return peer connected status
     def is_connected(self):
@@ -134,4 +145,4 @@ class PyrePeer(object):
         else:
             self.want_sequence -= 1
             return False
-        
+
