@@ -1,11 +1,10 @@
 import zmq
 import time
-import binascii
-import os
 import struct
 import socket
 import uuid
 import logging
+import sys
 
 # local modules
 from . import zbeacon
@@ -72,7 +71,7 @@ class Pyre(object):
         return self._pipe
 
     # Set node header value
-    def set_header(self, name, format, *args):
+    def set_header(self, name, value, *args):
         self._pipe.send_unicode("SET", flags=zmq.SNDMORE)
         self._pipe.send_unicode(name, flags=zmq.SNDMORE)
         self._pipe.send_unicode(value, flags=zmq.SNDMORE)

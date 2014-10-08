@@ -222,7 +222,7 @@ class ZBeaconAgent(object):
                 else:
                     self._udp_sock.bind((self.announce_addr, self._port))
 
-        except socket.error as msg:
+        except socket.error:
             logger.exception("Initializing of {0} raised an exception".format(self.__class__.__name__))
 
     def __del__(self):
@@ -245,7 +245,7 @@ class ZBeaconAgent(object):
         cmd = cmds.pop(0)
         cmd = cmd.decode('UTF-8')
         if cmd == "INTERVAL":
-            self._interval = atoi(cmds.pop(0))
+            self._interval = int(cmds.pop(0))
 
         elif cmd == "NOECHO":
             self._noecho = True
@@ -286,7 +286,7 @@ class ZBeaconAgent(object):
         try:
             data, addr = self._udp_sock.recvfrom(BEACON_MAX)
 
-        except socket.error as e:
+        except socket.error:
             logger.exception("Exception while receiving")
 
         # Get sender address as printable string

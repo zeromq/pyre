@@ -33,7 +33,12 @@ def zthread_fork(ctx, func, *args, **kwargs):
     return a
 
 
-from ctypes import *
+from ctypes import c_char, c_char_p
+from ctypes import c_uint, c_uint8, c_uint16, c_uint32
+from ctypes import c_short, c_ushort
+from ctypes import c_void_p, pointer
+from ctypes import CDLL, Structure, Union
+
 from sys import platform
 from socket import AF_INET, AF_INET6, inet_ntop
 try:
