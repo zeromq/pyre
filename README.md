@@ -98,75 +98,75 @@ For now use Pip:
 ## Example Chat Client
 
 ```python
-from pyre import Pyre
-from pyre import zhelper
-import zmq
-import uuid
-import logging
+    from pyre import Pyre
+    from pyre import zhelper
+    import zmq
+    import uuid
+    import logging
 
-logger = logging.getLogger()
+    logger = logging.getLogger()
 
-logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.DEBUG)
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.DEBUG)
 
 
-def chat_task(ctx, pipe):
-    n = Pyre(ctx)
-    n.join("CHAT")
+    def chat_task(ctx, pipe):
+        n = Pyre(ctx)
+        n.join("CHAT")
 
-    poller = zmq.Poller()
-    poller.register(pipe, zmq.POLLIN)
-    poller.register(n.get_socket(), zmq.POLLIN)
+        poller = zmq.Poller()
+        poller.register(pipe, zmq.POLLIN)
+        poller.register(n.get_socket(), zmq.POLLIN)
 
-    while(True):
-        items = dict(poller.poll())
+        while(True):
+            items = dict(poller.poll())
 
-        if pipe in items and items[pipe] == zmq.POLLIN:
-            message = pipe.recv()
+            if pipe in items and items[pipe] == zmq.POLLIN:
+                message = pipe.recv()
 
-            # message to quit
-            if message.decode('utf-8') == "$$STOP":
+                # message to quit
+                if message.decode('utf-8') == "$$STOP":
+                    break
+
+                logger.debug("CHAT_TASK: {0}".format(message))
+
+                n.shout("CHAT", message)
+
+            if n.get_socket() in items and items[n.get_socket()] == zmq.POLLIN:
+                cmds = n.get_socket().recv_multipart()
+                type = cmds.pop(0)
+
+                peer_uuid_bytes = cmds.pop(0)
+                peer_uuid = uuid.UUID(bytes=peer_uuid_bytes)
+
+                logger.debug("NODE_MSG TYPE: {0}".format(type))
+                logger.debug("NODE_MSG PEER: {0}".format(peer_uuid))
+
+                if type.decode('utf-8') == "SHOUT":
+                    group_name = cmds.pop(0)
+                    logger.debug("NODE_MSG GROUP: {0}".format(group_name))
+
+                logger.debug("NODE_MSG CONT: {0}".format(cmds))
+
+        n.stop()
+    # end chat_task
+
+
+    if __name__ == '__main__':
+        ctx = zmq.Context()
+        chat_pipe = zhelper.zthread_fork(ctx, chat_task)
+
+        while True:
+            try:
+                msg = input()
+                chat_pipe.send(msg.encode('utf_8'))
+
+            except (KeyboardInterrupt, SystemExit):
                 break
 
-            logger.debug("CHAT_TASK: {0}".format(message))
+        chat_pipe.send("$$STOP".encode('utf_8'))
 
-            n.shout("CHAT", message)
-
-        if n.get_socket() in items and items[n.get_socket()] == zmq.POLLIN:
-            cmds = n.get_socket().recv_multipart()
-            type = cmds.pop(0)
-
-            peer_uuid_bytes = cmds.pop(0)
-            peer_uuid = uuid.UUID(bytes=peer_uuid_bytes)
-
-            logger.debug("NODE_MSG TYPE: {0}".format(type))
-            logger.debug("NODE_MSG PEER: {0}".format(peer_uuid))
-
-            if type.decode('utf-8') == "SHOUT":
-                group_name = cmds.pop(0)
-                logger.debug("NODE_MSG GROUP: {0}".format(group_name))
-
-            logger.debug("NODE_MSG CONT: {0}".format(cmds))
-
-    n.stop()
-# end chat_task
-
-
-if __name__ == '__main__':
-    ctx = zmq.Context()
-    chat_pipe = zhelper.zthread_fork(ctx, chat_task)
-
-    while True:
-        try:
-            msg = input()
-            chat_pipe.send(msg.encode('utf_8'))
-
-        except (KeyboardInterrupt, SystemExit):
-            break
-
-    chat_pipe.send("$$STOP".encode('utf_8'))
-
-    logger.debug("FINISHED")
+        logger.debug("FINISHED")
 ```
 
 ## Project Organization
