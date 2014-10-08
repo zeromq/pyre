@@ -17,7 +17,6 @@ class PyreGroup(object):
         self.peers[peer.get_identity()] = peer
         peer.set_status(peer.get_status() + 1)
 
-
     # Remove peer from group
     def leave(self, peer):
         peer_identity = peer.get_identity()

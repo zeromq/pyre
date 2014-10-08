@@ -74,8 +74,9 @@ class Pyre(object):
     # Set node header value
     def set_header(self, name, format, *args):
         self._pipe.send_unicode("SET", flags=zmq.SNDMORE)
-        self._pipe.send_unicode( name, flags=zmq.SNDMORE)
+        self._pipe.send_unicode(name, flags=zmq.SNDMORE)
         self._pipe.send_unicode(value, flags=zmq.SNDMORE)
+
 
 class PyreNode(object):
 
@@ -105,13 +106,14 @@ class PyreNode(object):
         # line 299 zbeacon.c
         self.beacon.set_noecho()
         # construct a header
-        transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
-                               BEACON_VERSION, self.identity.bytes, 
+        transmit = struct.pack('cccb16sH', b'Z', b'R', b'E',
+                               BEACON_VERSION, self.identity.bytes,
                                socket.htons(self.port))
+
         self.beacon.publish(transmit)
-        # construct the header filter 
+        # construct the header filter
         # (to discard none zre messages)
-        filter = struct.pack("ccc", b'Z',b'R',b'E')
+        filter = struct.pack("ccc", b'Z', b'R', b'E')
         self.beacon.subscribe(filter)
 
         self.host = self.beacon.get_hostname()
@@ -126,9 +128,10 @@ class PyreNode(object):
         # destroy beacon
 
     def stop(self):
-        stop_transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
-                               BEACON_VERSION, self.identity.bytes, 
+        stop_transmit = struct.pack('cccb16sH', b'Z', b'R', b'E',
+                               BEACON_VERSION, self.identity.bytes,
                                socket.htons(0))
+
         self.beacon.publish(stop_transmit)
         # Give time for beacon to go out
         time.sleep(0.001)
@@ -156,14 +159,16 @@ class PyreNode(object):
         p = self.peers.get(identity)
         if not p:
             # Purge any previous peer on same endpoint
-            endpoint = "%s:%u" %(ipaddr, port)
+            endpoint = "{0}:{1}".format(ipaddr, port)
+
             for peer_id, peer in self.peers.copy().items():
                 self.purge_peer(peer, endpoint)
 
             p = PyrePeer(self._ctx, identity)
             self.peers[identity] = p
             #print("Require_peer: %s" %identity)
-            p.connect(self.identity, "%s:%u" %(ipaddr, port))
+
+            p.connect(self.identity, endpoint)
             m = ZreMsg(ZreMsg.HELLO)
             m.set_ipaddress(self.host)
             m.set_mailbox(self.port)
@@ -172,7 +177,7 @@ class PyreNode(object):
             p.send(m)
 
             # Now tell the caller about the peer
-            self._pipe.send_unicode("ENTER", flags=zmq.SNDMORE);
+            self._pipe.send_unicode("ENTER", flags=zmq.SNDMORE)
             self._pipe.send(identity.bytes)
         return p
 
@@ -181,7 +186,7 @@ class PyreNode(object):
         grp = self.peer_groups.get(groupname)
         if not grp:
             grp = PyreGroup(groupname)
-            self.peer_groups[groupname] = grp 
+            self.peer_groups[groupname] = grp
         return grp
 
     def join_peer_group(self, peer, name):
@@ -369,11 +374,11 @@ class PyreNode(object):
 
         reap_at = time.time() + REAP_INTERVAL
         while(True):
-            timeout = reap_at - time.time();
+            timeout = reap_at - time.time()
             if timeout < 0:
                 timeout = 0
 
-            items = dict(self.poller.poll(timeout*1000))
+            items = dict(self.poller.poll(timeout * 1000))
 
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
                 self.recv_api()
@@ -390,6 +395,7 @@ class PyreNode(object):
                     self.ping_peer(peer_id)
             if self._terminated:
                 break
+
 
 def chat_task(ctx, pipe):
     n = Pyre(ctx)
