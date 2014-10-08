@@ -300,10 +300,9 @@ class ZBeaconAgent(object):
                     logger.debug("Received beacon doesn't match filter, discarding")
                     return
 
-        # If noEcho is set, check if beacon is our own
+        # If noEcho is set, check if beacon is our own and ignore it.
         if self._noecho:
             if self.transmit == data:
-                logger.debug("Received our own beacon, ignoring")
                 return
 
         # send the data onto the pipe

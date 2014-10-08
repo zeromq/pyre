@@ -98,7 +98,7 @@ class PyreNode(object):
         while self.identity.bytes[0] == 0:
             self.identity = uuid.uuid4()
 
-        logger.info("Node identity: {0}".format(self.identity))
+        logger.debug("Node identity: {0}".format(self.identity))
 
         self.beacon = zbeacon.ZBeacon(self._ctx, ZRE_DISCOVERY_PORT)
         # TODO: how do we set the header of the beacon?
@@ -239,7 +239,7 @@ class PyreNode(object):
                 for peer in self.peers.values():
                     peer.send(msg)
 
-                logging.info("Node is joining group {0}".format(grpname))
+                logging.debug("Node is joining group {0}".format(grpname))
 
         elif command == "LEAVE":
             grpname = cmds.pop(0).decode('UTF-8')
@@ -256,7 +256,7 @@ class PyreNode(object):
 
                 self.own_groups.pop(grpname)
 
-                logger.info("Node is leaving group {0}".format(grpname))
+                logger.debug("Node is leaving group {0}".format(grpname))
 
         elif command == "STOP":
             self.stop()
