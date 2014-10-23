@@ -197,6 +197,14 @@ class PyreNode(object):
         self._pipe.send_unicode(name)
         return grp
 
+    def leave_peer_group(self, peer, name):
+        grp = self.require_peer_group(name)
+        grp.leave(peer)
+        self._pipe.send_unicode("LEAVE", flags=zmq.SNDMORE)
+        self._pipe.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
+        self._pipe.send_unicode(name)
+        return grp
+
     # Here we handle the different control messages from the front-end
     def recv_api(self):
         cmds = self._pipe.recv_multipart()
@@ -251,7 +259,7 @@ class PyreNode(object):
                 self.status += 1
                 msg.set_status(self.status)
 
-                for peer in self.peers:
+                for peer in self.peers.values():
                     peer.send(msg)
 
                 self.own_groups.pop(grpname)
@@ -319,7 +327,7 @@ class PyreNode(object):
             self.join_peer_group(p, zmsg.get_group())
             #assert (zre_msg_status (msg) == zre_peer_status (peer))
         elif zmsg.id == ZreMsg.LEAVE:
-            self.leave_peer_group(zmsg.get_group())
+            self.leave_peer_group(p, zmsg.get_group())
         p.refresh()
 
     def recv_beacon(self):
