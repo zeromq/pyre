@@ -71,7 +71,7 @@ class ZBeacon(object):
         self._pipe.send_unicode(interval)
 
     # Filter out any beacon that looks exactly like ours
-    def no_echo(self):
+    def noecho(self):
         self._pipe.send_unicode("NOECHO")
 
     # Start broadcasting beacon to peers at the specified interval
@@ -140,15 +140,20 @@ class ZBeaconAgent(object):
         self.address = socket.gethostbyname(socket.gethostname())
         # fix for wrong ipaddress of host
         if self.address.startswith('127'):
-            # find highest available ipaddress
+            # find a non local ipaddress 
+            # TODO: only choose highest available ipaddress
             netinf = zhelper.get_ifaddrs()
             for iface in netinf:
                 # ipv4 only currently
                 for family in netinf[iface]:
                     if family == 2:
                         ipadr = ipaddress.IPv4Address(netinf[iface][family]['addr'])
-                        if ipadr > ipaddress.IPv4Address(self.address):
+                        if not ipadr.is_loopback:
                             self.address = netinf[iface][family]['addr']
+                            netmask = netinf[iface][family]['netmask']
+                            ifc = ipaddress.ip_interface("%s/%s" %(self.address, netmask))
+                            self.announce_addr = str(ifc.network.broadcast_address)
+
         self._pipe.send_unicode(self.address)
         self.run()
 
