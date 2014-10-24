@@ -119,8 +119,6 @@ class Pyre(object):
     def get_socket(self):
         return self._pipe
 
-<<<<<<< HEAD
-=======
     # Set node header value
     def set_header(self, name, value, *args):
         self._pipe.send_unicode("SET", flags=zmq.SNDMORE)
@@ -128,7 +126,6 @@ class Pyre(object):
         self._pipe.send_unicode(value, flags=zmq.SNDMORE)
 
 
->>>>>>> a9fa6989380a57279c3b5706489c732851ec5fc6
 class PyreNode(object):
 
     def __init__(self, ctx, pipe, *args):
@@ -141,7 +138,7 @@ class PyreNode(object):
         try:
             self.inbox.setsockopt(zmq.ROUTER_HANDOVER, 1)
         except AttributeError as e:
-            print("can't set ROUTER_HANDOVER, probably old zmq version")
+            logging.warning("can't set ROUTER_HANDOVER, probably old zmq version")
         self.outbox = ZSocket(self._ctx, zmq.DEALER)
         self.poller = zmq.Poller()
         self.poller.register(self._pipe, zmq.POLLIN)
@@ -178,25 +175,14 @@ class PyreNode(object):
             self.beacon = zbeacon.ZBeacon(self._ctx, self.beacon_port)
         if self.interval:
             self.beacon.set_interval(self.interval)
-        self.poller.register(self.beacon.get_socket(), zmq.POLLIN)
-
-        self.beacon.no_echo()
-
-        # Workaround for https://github.com/zeromq/zyre/commit/be684a14ec3198dea043749bf36e59962f7e5073
-        while self.identity.bytes[0] == 0:
-            self.identity = uuid.uuid4()
-
-        logger.debug("Node identity: {0}".format(self.identity))
-
-        self.beacon = zbeacon.ZBeacon(self._ctx, ZRE_DISCOVERY_PORT)
+      
         # TODO: how do we set the header of the beacon?
         # line 299 zbeacon.c
-        self.beacon.set_noecho()
         # construct a header
         transmit = struct.pack('cccb16sH', b'Z', b'R', b'E',
                                BEACON_VERSION, self.identity.bytes,
                                socket.htons(self.port))
-
+        self.beacon.noecho()
         self.beacon.publish(transmit)
         # construct the header filter
         # (to discard none zre messages)
@@ -206,6 +192,7 @@ class PyreNode(object):
         # Our own host endpoint is provided by the beacon
         self.endpoint = "tcp://%s:%d" %(self.beacon.get_hostname(), self.port)
         self.poller.register(self.inbox, zmq.POLLIN)
+        logger.debug("Node identity: {0}".format(self.identity))
 
     def stop(self):
         if self.beacon:
@@ -476,7 +463,7 @@ class PyreNode(object):
             #assert (zre_msg_status (msg) == zre_peer_status (peer))
         elif zmsg.id == ZreMsg.LEAVE:
             self.leave_peer_group(zmsg.get_group())
-        peer.refresh()
+            peer.refresh()
             self.leave_peer_group(p, zmsg.get_group())
         p.refresh()
 
@@ -509,10 +496,6 @@ class PyreNode(object):
 
             else:
                 logger.warning("We don't know peer id {0}".format(peer_id))
-
-        else:
-            peer = self.require_peer(peer_id, ipaddress.decode('UTF-8'), port)
-            peer.refresh()
 
     #  Remove peer from group, if it's a member
     def delete_peer(self, peer, group):
