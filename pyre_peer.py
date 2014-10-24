@@ -47,12 +47,10 @@ class PyrePeer(object):
         # Send messages immediately or return EAGAIN
         self.mailbox.setsockopt(zmq.SNDTIMEO, 0)
 
-        tcp_endpoint = "tcp://{0}".format(endpoint)
-
         # Connect through to peer node
-        logger.debug("Connecting to peer {0} on endpoint {1}".format(self.identity, tcp_endpoint))
+        logger.debug("Connecting to peer {0} on endpoint {1}".format(self.identity, endpoint))
 
-        self.mailbox.connect(tcp_endpoint)
+        self.mailbox.connect(endpoint)
         self.endpoint = endpoint
         self.connected = True
         self.ready = False

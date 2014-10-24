@@ -134,7 +134,6 @@ class ZBeaconAgent(object):
         # Our announcement address
         self.announce_addr = announce_addr
         #byte announcement [2] = (port_nbr >> 8) & 0xFF, port_nbr & 0xFF
-        self._init_socket()
         # Send our hostname back to AP
         # TODO This results in just the ip address and not sure if this is needed
         self.address = socket.gethostbyname(socket.gethostname())
@@ -154,6 +153,7 @@ class ZBeaconAgent(object):
                             ifc = ipaddress.ip_interface("%s/%s" %(self.address, netmask))
                             self.announce_addr = str(ifc.network.broadcast_address)
 
+        self._init_socket()
         self._pipe.send_unicode(self.address)
         self.run()
 
@@ -204,7 +204,7 @@ class ZBeaconAgent(object):
                 except AttributeError:
                     pass
 
-                self._udp_sock.bind((self.announce_addr, self._port))
+                self._udp_sock.bind((self.address, self._port))
 
             else:
                 # Only for broadcast
