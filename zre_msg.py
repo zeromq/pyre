@@ -30,18 +30,22 @@
 import struct
 import uuid
 import zmq
+import logging
 
 STRING_MAX = 255
+
+logger = logging.getLogger(__name__)
+
 
 class ZreMsg(object):
 
     VERSION = 2
     HELLO   = 1
     WHISPER = 2
-    SHOUT   = 3
-    JOIN    = 4
-    LEAVE   = 5
-    PING    = 6
+    SHOUT = 3
+    JOIN = 4
+    LEAVE = 5
+    PING = 6
     PING_OK = 7
 
     def __init__(self, id=None, *args, **kwargs):
@@ -66,26 +70,28 @@ class ZreMsg(object):
         frames = input_socket.recv_multipart()
         if input_socket.socket_type == zmq.ROUTER:
             self.address = frames.pop(0)
-            #print("ZreMsg id from router sock: %s" %self.address)
+            self.address = uuid.UUID(bytes=self.address)
             if not self.address:
-                print("Empty or malformed")
+                logger.debug("Peer identity frame empty or malformed")
+
         # Read and parse command in frame
         self.struct_data = frames.pop(0)
         if not self.struct_data:
             return None
+
         # Get and check protocol signature
         if self._needle != 0:
-            print("Message already decoded")
+            logger.debug("Message already decoded for protocol signature")
+
         self._ceil = len(self.struct_data)
-        #print("ZreMsg recv: %s" %self.struct_data)
+
         signature = self._get_number2()
         if signature != (0xAAA0 | 1):
-            print("invalid signature %s" %signature)
+            logger.debug("Invalid signature {0}".format(signature))
             return None
 
         # Get message id and parse per message type
-        self.id = self._get_number1();
-        #print("ZreMsg id: %i" % self.id)
+        self.id = self._get_number1()
 
         version = self._get_number1()
         if version != 2:
@@ -94,40 +100,47 @@ class ZreMsg(object):
 
         if self.id == ZreMsg.HELLO:
             self.unpack_hello()
+
         elif self.id == ZreMsg.WHISPER:
             self.sequence = self._get_number2()
             if len(frames):
                 self.content = frames.pop(0)
+
         elif self.id == ZreMsg.SHOUT:
             self.sequence = self._get_number2()
             self.group = self._get_string()
             if len(frames):
                 self.content = frames.pop(0)
+
         elif self.id == ZreMsg.JOIN:
             self.sequence = self._get_number2()
             self.group = self._get_string()
-            self.status = self._get_number1()    
+            self.status = self._get_number1()
+
         elif self.id == ZreMsg.LEAVE:
             self.sequence = self._get_number2()
             self.group = self._get_string()
             self.status = self._get_number1()
+
         elif self.id == ZreMsg.PING:
             self.sequence = self._get_number2()
+
         elif self.id == ZreMsg.PING_OK:
             self.sequence = self._get_number2()
+
         else:
-            print("I don't know ID: %i" %self.id)
+            logger.debug("Message type {0} unknown".format(self.id))
 
     # Send the zre_msg to the output, and destroy it
     def send(self, output_socket):
         # clear data
         self.struct_data = b''
         self._needle = 0
+
         # add signature
         self._put_number2(0xAAA0 | 1)
-        #print(self.struct_data)
+
         # add id
-        #print("ZreMsg: ", self.id)
         self._put_number1(self.id)
         #print(self.struct_data)
         # add version
@@ -135,27 +148,34 @@ class ZreMsg(object):
 
         if self.id == ZreMsg.HELLO:
             self.pack_hello()
+
         elif self.id == ZreMsg.WHISPER:
             self._put_number2(self.sequence)
             # add content in a new frame
+
         elif self.id == ZreMsg.SHOUT:
             self._put_number2(self.sequence)
             self._put_string(self.group)
             # add content in a new frame
+
         elif self.id == ZreMsg.JOIN:
             self._put_number2(self.sequence)
             self._put_string(self.group)
             self._put_number1(self.status)
+
         elif self.id == ZreMsg.LEAVE:
             self._put_number2(self.sequence)
             self._put_string(self.group)
             self._put_number1(self.status)
+
         elif self.id == ZreMsg.PING:
             self._put_number2(self.sequence)
+
         elif self.id == ZreMsg.PING_OK:
             self._put_number2(self.sequence)
+
         else:
-            print("I don't know ID: %i" %self.id)
+            logger.debug("Message type {0} unknown".format(self.id))
 
         # If we're sending to a ROUTER, we send the address first
         if output_socket.socket_type == zmq.ROUTER:
@@ -174,59 +194,59 @@ class ZreMsg(object):
     def send_hello(self, output, sequence, ipaddress, mailbox, groups, status, headers):
         print("E: NOT IMPLEMENTED")
         pass
-    
+
     # Send the WHISPER to the output in one step
     def send_whisper(self, output, sequence, content):
         print("E: NOT IMPLEMENTED")
         pass
-    
+
     # Send the SHOUT to the output in one step
     def send_shout(self, output, sequence, group, content):
         print("E: NOT IMPLEMENTED")
         pass
-    
+
     # Send the JOIN to the output in one step
     def send_join(self, output, sequence, group, status):
         print("E: NOT IMPLEMENTED")
         pass
-    
+
     # Send the LEAVE to the output in one step
     def send_leave(self, sequence, group, status):
         print("E: NOT IMPLEMENTED")
         pass
-    
+
     # Send the PING to the output in one step
     def send_ping(self, output, sequence):
         print("E: NOT IMPLEMENTED")
         pass
-    
+
     #  Send the PING_OK to the output in one step
     def send_ping_ok(self, output, sequence):
         print("E: NOT IMPLEMENTED")
         pass
-    
+
     # Duplicate the zre_msg message
     def dup(self):
         print("E: NOT IMPLEMENTED")
         pass
-    
+
     # Print contents of message to stdout
     def dump(self):
         print("E: NOT IMPLEMENTED")
         pass
-    
+
     # Get/set the message address
     def get_address(self):
         return self.address
-    
+
     def set_address(self, address):
         self.address = address
-    
+
     # Get the zre_msg id and printable command
     def get_id(self):
         print("E: NOT IMPLEMENTED")
         pass
-    
+
     def set_id(self, id):
         print("E: NOT IMPLEMENTED")
         pass
@@ -240,11 +260,11 @@ class ZreMsg(object):
     def command(self):
         print("E: NOT IMPLEMENTED")
         pass
-    
+
     # Get/set the sequence field
     def get_sequence(self):
         return self.sequence
-    
+
     def set_sequence(self, sequence):
         self.sequence = sequence
     
@@ -255,75 +275,89 @@ class ZreMsg(object):
     def set_endpoint(self, endpoint):
         self.endpoint = endpoint
         
+    # Get/set the ipaddress field
+    def get_ipaddress(self):
+        return self.ipaddress
+
+    def set_ipaddress(self, ipaddr):
+        self.ipaddress = ipaddr
+
+    # Get/set the mailbox field
+    def get_mailbox(self):
+        return self.mailbox
+
+    def set_mailbox(self, port):
+        self.mailbox = port
+
     # Get/set the groups field
     def get_groups(self):
         return self.groups
-    
+
     def set_groups(self, groups):
         self.groups = groups
-    
+
     # Iterate through the groups field, and append a groups value
     # TODO: do we need this in python? l186 zre_msg.h
-    
+
     #  Get/set the status field
     def get_status(self):
         return self.status
-    
+
     def set_status(self, status):
         self.status = status
-    
+
     # Get/set the headers field
     def get_headers(self):
         return self.headers
-    
+
     def set_headers(self, headers):
         self.headers = headers
-    
+
     # Get/set a value in the headers dictionary
     # TODO: l208 zre_msg.h
-    
+
     # Get/set the group field
     def get_group(self):
         return self.group
-    
+
     def set_group(self, group):
         self.group = group
 
     def _get_string(self):
         s_len = self._get_number1()
-        s = struct.unpack_from(str(s_len)+'s', self.struct_data , offset=self._needle)
-        self._needle += struct.calcsize('s'* s_len)
+        s = struct.unpack_from(str(s_len) + 's', self.struct_data, offset=self._needle)
+        self._needle += struct.calcsize('s' * s_len)
         return s[0].decode('UTF-8')
-    
+
     def _get_number1(self):
-        num = struct.unpack_from('>b', self.struct_data , offset=self._needle)
+        num = struct.unpack_from('>b', self.struct_data, offset=self._needle)
         self._needle += struct.calcsize('>b')
-        return num[0] 
+        return num[0]
 
     def _get_number2(self):
-        num = struct.unpack_from('>H', self.struct_data , offset=self._needle)
+        num = struct.unpack_from('>H', self.struct_data, offset=self._needle)
         self._needle += struct.calcsize('>H')
         return num[0]
 
     def _get_number4(self):
-        num = struct.unpack_from('>I', self.struct_data , offset=self._needle)
+        num = struct.unpack_from('>I', self.struct_data, offset=self._needle)
         self._needle += struct.calcsize('>I')
         return num[0]
 
     def _get_number8(self):
-        num = struct.unpack_from('>Q', self.struct_data , offset=self._needle)
+        num = struct.unpack_from('>Q', self.struct_data, offset=self._needle)
         self._needle += struct.calcsize('>Q')
         return num[0]
 
     def _get_long_string(self):
         s_len = self._get_number4()
-        s = struct.unpack_from(str(s_len)+'s', self.struct_data , offset=self._needle)
-        self._needle += struct.calcsize('s'* s_len)
+        s = struct.unpack_from(str(s_len) + 's', self.struct_data, offset=self._needle)
+        self._needle += struct.calcsize('s' * s_len)
         return s[0].decode('UTF-8')
 
     def _put_string(self, s):
         self._put_number1(len(s))
-        d = struct.pack('%is' %len(s), s.encode('UTF-8'))
+        d = struct.pack('%is' % len(s), s.encode('UTF-8'))
         self.struct_data += d
 
     def _put_number1(self, nr):
@@ -344,12 +378,12 @@ class ZreMsg(object):
 
     def _put_long_string(self, s):
         self._put_number4(len(s))
-        d = struct.pack('%is' %len(s), s.encode('UTF-8'))
+        d = struct.pack('%is' % len(s), s.encode('UTF-8'))
         self.struct_data += d
 
     def unpack_hello(self):
         """unpack a zre hello packet
-        
+
         sequence      number 2
         endpoint      string
         groups        strings
@@ -388,7 +422,7 @@ class ZreMsg(object):
 
     def pack_hello(self):
         """Pack a zre hello packet
-        
+
         sequence      number 2
         endpoint      string
         groups        strings
@@ -414,10 +448,15 @@ class ZreMsg(object):
             self._put_long_string(val)
 
 if __name__ == '__main__':
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.DEBUG)
+    self._put_long_string("%s=%s" % (key, val))
+
     testdata = struct.pack('>Hb9sII2sI2sI2sbb4sIb1sI1sb1sI1s',
                            11,         # sequence
                            9,          # str length
                            b"192:20123",   # endpoint
+                           20123,      # mailbox
                            3,          # groups len
                            2, b"g1",   # length + groupname
                            2, b"g2",   # length + groupname
@@ -431,11 +470,14 @@ if __name__ == '__main__':
                            1, b"b"     # length + dict
                     )
 
-    print("New ZRE HELLO message")
+    logger.debug("New ZRE HELLO message")
     m = ZreMsg(ZreMsg.HELLO, data=testdata)
-    print("Unpack a HELLO message")
+
+    logger.debug("Unpack a HELLO message")
     m.unpack_hello()
-    print("Pack a HELLO message")
+
+    logger.debug("Pack a HELLO message")
     m.pack_hello()
-    print("Unpack the packed HELLO message")
+
+    logger.debug("Unpack the packed HELLO message")
     m.unpack_hello()

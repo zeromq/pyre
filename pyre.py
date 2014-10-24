@@ -1,10 +1,11 @@
 import zmq
 import time
-import binascii
-import os
 import struct
 import socket
 import uuid
+import logging
+import sys
+
 # local modules
 from . import zbeacon
 from . import zhelper
@@ -16,6 +17,9 @@ from .pyre_group import PyreGroup
 BEACON_VERSION = 2
 ZRE_DISCOVERY_PORT = 5670
 REAP_INTERVAL = 1.0  # Once per second
+
+logger = logging.getLogger(__name__)
+
 
 class Pyre(object):
 
@@ -115,6 +119,16 @@ class Pyre(object):
     def get_socket(self):
         return self._pipe
 
+<<<<<<< HEAD
+=======
+    # Set node header value
+    def set_header(self, name, value, *args):
+        self._pipe.send_unicode("SET", flags=zmq.SNDMORE)
+        self._pipe.send_unicode(name, flags=zmq.SNDMORE)
+        self._pipe.send_unicode(value, flags=zmq.SNDMORE)
+
+
+>>>>>>> a9fa6989380a57279c3b5706489c732851ec5fc6
 class PyreNode(object):
 
     def __init__(self, ctx, pipe, *args):
@@ -124,7 +138,6 @@ class PyreNode(object):
         self.status = 0
         self.bound = False
         self.inbox = ctx.socket(zmq.ROUTER)
-        # TODO: Set router handover
         try:
             self.inbox.setsockopt(zmq.ROUTER_HANDOVER, 1)
         except AttributeError as e:
@@ -135,6 +148,7 @@ class PyreNode(object):
         self.beacon_port = ZRE_DISCOVERY_PORT
         self.interval = 0       # Use default
         self.identity = uuid.uuid4()
+
         self.peers = {}
         self.peer_groups = {}
         self.own_groups = {}
@@ -155,7 +169,8 @@ class PyreNode(object):
         if not self.bound:
             self.port = self.inbox.bind_to_random_port("tcp://*")
             if self.port < 0:
-                print("ERROR setting up agent port")
+                logging.critical("Random port assignment for incoming messages failed. Exiting.")
+                sys.exit(-1)
             else:
                 self.bound = True
 
@@ -166,14 +181,26 @@ class PyreNode(object):
         self.poller.register(self.beacon.get_socket(), zmq.POLLIN)
 
         self.beacon.no_echo()
+
+        # Workaround for https://github.com/zeromq/zyre/commit/be684a14ec3198dea043749bf36e59962f7e5073
+        while self.identity.bytes[0] == 0:
+            self.identity = uuid.uuid4()
+
+        logger.debug("Node identity: {0}".format(self.identity))
+
+        self.beacon = zbeacon.ZBeacon(self._ctx, ZRE_DISCOVERY_PORT)
+        # TODO: how do we set the header of the beacon?
+        # line 299 zbeacon.c
+        self.beacon.set_noecho()
         # construct a header
-        transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
-                               BEACON_VERSION, self.identity.bytes, 
+        transmit = struct.pack('cccb16sH', b'Z', b'R', b'E',
+                               BEACON_VERSION, self.identity.bytes,
                                socket.htons(self.port))
+
         self.beacon.publish(transmit)
-        # construct the header filter 
+        # construct the header filter
         # (to discard none zre messages)
-        filter = struct.pack("ccc", b'Z',b'R',b'E')
+        filter = struct.pack("ccc", b'Z', b'R', b'E')
         self.beacon.subscribe(filter)
 
         # Our own host endpoint is provided by the beacon
@@ -190,11 +217,12 @@ class PyreNode(object):
             time.sleep(0.001)
         self.poller.unregister(self.beacon.get_socket())
 
-    def bind(self, endpoint):
-        print("Not implemented")
         #self.port = endpoint.split(':')[2]
         #self.bound = True
         #self.beacon_port = 0
+
+    def bind(self, endpoint):
+        print("Not implemented")
 
     # Send message to all peers
     def send_peer(self, peer, msg):
@@ -220,6 +248,7 @@ class PyreNode(object):
         p = self.peers.get(identity)
         if not p:
             # Purge any previous peer on same endpoint
+            endpoint = "{0}:{1}".format(ipaddr, port)
             for peer_id, peer in self.peers.copy().items():
                 self.purge_peer(peer, endpoint)
 
@@ -235,6 +264,9 @@ class PyreNode(object):
             m.set_headers(self.headers)
             p.send(m)
 
+            # Now tell the caller about the peer
+            self._pipe.send_unicode("ENTER", flags=zmq.SNDMORE)
+            self._pipe.send(identity.bytes)
         return p
 
     # Find or create group via its name
@@ -242,7 +274,7 @@ class PyreNode(object):
         grp = self.peer_groups.get(groupname)
         if not grp:
             grp = PyreGroup(groupname)
-            self.peer_groups[groupname] = grp 
+            self.peer_groups[groupname] = grp
         return grp
 
     def join_peer_group(self, peer, groupname):
@@ -264,7 +296,6 @@ class PyreNode(object):
         # Now remove the peer from the group
         grp = self.require_peer_group(groupname)
         grp.leave(peer)
-
 
     # Here we handle the different control messages from the front-end
     def recv_api(self):
@@ -322,11 +353,13 @@ class PyreNode(object):
             msg = ZreMsg(ZreMsg.SHOUT)
             msg.set_group(grpname)
             msg.content = request.pop(0)
+
             if self.peer_groups.get(grpname):
                 self.peer_groups[grpname].send(msg)
+
             else:
-                print("group %s not found" %grpname)
-                #print(self.peer_groups)
+                logger.warning("Group {0} not found.".format(grpname))
+
         elif command == "JOIN":
             grpname = request.pop(0).decode('UTF-8')
             grp = self.own_groups.get(grpname)
@@ -338,9 +371,12 @@ class PyreNode(object):
                 msg.set_group(grpname)
                 self.status += 1
                 msg.set_status(self.status)
+
                 for peer in self.peers.values():
                     peer.send(msg)
-                print("Node is joining group %s" % grpname)
+
+                logger.debug("Node is joining group {0}".format(grpname))
+
         elif command == "LEAVE":
             grpname = request.pop(0).decode('UTF-8')
             grp = self.own_groups.get(grpname)
@@ -350,14 +386,27 @@ class PyreNode(object):
                 msg.set_group(grpname)
                 self.status += 1
                 msg.set_status(self.status)
+
                 for peer in self.peers.values():
                     peer.send(msg)
+
                 self.own_groups.pop(grpname)
-                print("Node is leaving group %s" % grpname)
+
+                logger.debug("Node is leaving group {0}".format(grpname))
         elif command == "$TERM":
+            pass
+
+        elif command == "STOP":
+            self.stop()
+            try:
+                self._pipe.send_unicode("OK", zmq.DONTWAIT)
+            except zmq.error.Again:
+                # other end of the pipe is already gone
+                pass
             self._terminated = True
+
         else:
-            print('Invalid command: %s' %command)
+            logger.warning("Unkown Node API command: {0}".format(command))
 
     # Here we handle messages coming from other peers
     def recv_peer(self):
@@ -384,12 +433,13 @@ class PyreNode(object):
             peer.set_ready(True)
 
         # Ignore command if peer isn't ready
-        if not peer or not peer.get_ready():
-            print("Peer %s isn't ready" %p)
+        if not p or not p.get_ready():
+            logger.warning("Peer {0} isn't ready".format(p))
             return
-        if not peer.check_message(zmsg):
-            print("W: [%s] lost messages from %s" %(self.identity, p.identity))
-        # Now process each command
+
+        if not p.check_message(zmsg):
+            logger.warning("{0} lost messages from {1}".format(self.identity, p.identity))
+
         if zmsg.id == ZreMsg.HELLO:
             # Join peer to listed groups
             peer.set_name(zmsg.get_name())
@@ -427,6 +477,8 @@ class PyreNode(object):
         elif zmsg.id == ZreMsg.LEAVE:
             self.leave_peer_group(zmsg.get_group())
         peer.refresh()
+            self.leave_peer_group(p, zmsg.get_group())
+        p.refresh()
 
     def recv_beacon(self):
         msgs = self.beacon.get_socket().recv_multipart()
@@ -434,9 +486,11 @@ class PyreNode(object):
         frame = msgs.pop(0)
         beacon = struct.unpack('cccb16sH', frame)
         # Ignore anything that isn't a valid beacon
+
         if beacon[3] != BEACON_VERSION:
-            print("Invalid ZRE Beacon version: %s" %beacon[3])
+            logger.warning("Invalid ZRE Beacon version: {0}".format(beacon[3]))
             return
+
         peer_id = uuid.UUID(bytes=beacon[4])
         #print("peerId: %s", peer_id)
         port = socket.ntohs(beacon[5])
@@ -452,8 +506,13 @@ class PyreNode(object):
             # remove the peer (delete)
             if peer:
                 self.remove_peer(peer)
+
             else:
-                print("We don't know peer id: %s" %peer_id)
+                logger.warning("We don't know peer id {0}".format(peer_id))
+
+        else:
+            peer = self.require_peer(peer_id, ipaddress.decode('UTF-8'), port)
+            peer.refresh()
 
     #  Remove peer from group, if it's a member
     def delete_peer(self, peer, group):
@@ -474,12 +533,12 @@ class PyreNode(object):
     def run(self):
         # TODO: Signal actor successfully initialized
         reap_at = time.time() + REAP_INTERVAL
-        while not self._terminated:
-            timeout = reap_at - time.time();
+        while(True):
+            timeout = reap_at - time.time()
             if timeout < 0:
                 timeout = 0
 
-            items = dict(self.poller.poll(timeout*1000))
+            items = dict(self.poller.poll(timeout * 1000))
 
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
                 self.recv_api()
@@ -495,6 +554,7 @@ class PyreNode(object):
                 for peer_id in self.peers.copy().keys():
                     self.ping_peer(peer_id)
 
+
 def chat_task(ctx, pipe):
     n = Pyre(ctx)
     n.join("CHAT")
@@ -506,16 +566,21 @@ def chat_task(ctx, pipe):
         items = dict(poller.poll())
         if pipe in items and items[pipe] == zmq.POLLIN:
             message = pipe.recv()
-            print("CHAT_TASK: %s" % message)
+            logger.debug("CHAT_TASK: {0}".format(message))
             n.shout("CHAT", message)
+
         if n.get_socket() in items and items[n.get_socket()] == zmq.POLLIN:
             cmds = n.get_socket().recv_multipart()
+
             type = cmds.pop(0)
-            print("NODE_MSG TYPE: %s" % type)
-            print("NODE_MSG PEER: %s" % uuid.UUID(bytes=cmds.pop(0)))
+
+            logger.debug("NODE_MSG TYPE: {0}".format(type))
+            logger.debug("NODE_MSG PEER: {0}".format(uuid.UUID(bytes=cmds.pop(0))))
+
             if type.decode('utf-8') == "SHOUT":
-                print("NODE_MSG GROUP: %s" % cmds.pop(0))
-            print("NODE_MSG CONT: %s" % cmds)
+                logger.debug("NODE_MSG GROUP: {0}".format(cmds.pop(0)))
+
+            logger.debug("NODE_MSG CONT: {0}".format(cmds))
 
 
 if __name__ == '__main__':
@@ -527,4 +592,5 @@ if __name__ == '__main__':
             chat_pipe.send(msg.encode('utf_8'))
         except (KeyboardInterrupt, SystemExit):
             break
-    print("FINISHED")
+
+    logger.debug("Exiting")

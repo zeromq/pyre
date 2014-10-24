@@ -1,10 +1,14 @@
 import time
 import zmq
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class PyrePeer(object):
-    
-    PEER_EXPIRED = 10            # expire after 10s
-    PEER_EVASIVE = 5             # mark evasive after 5s
+
+    PEER_EXPIRED = 10             # expire after 10s
+    PEER_EVASIVE = 5              # mark evasive after 5s
 
     def __init__(self, ctx, identity):
         # TODO: what to do with container?
@@ -21,8 +25,6 @@ class PyrePeer(object):
         self.sent_sequence = 0   # Outgoing message sequence
         self.want_sequence = 0   # Incoming message sequence
         self.headers = []        # Peer headers
-
-    #def __del__(self):
 
     # Connect peer mailbox
     def connect(self, reply_to, endpoint):
@@ -44,8 +46,13 @@ class PyrePeer(object):
         self.mailbox.setsockopt(zmq.SNDHWM, PyrePeer.PEER_EXPIRED * 100)
         # Send messages immediately or return EAGAIN
         self.mailbox.setsockopt(zmq.SNDTIMEO, 0)
+
+        tcp_endpoint = "tcp://{0}".format(endpoint)
+
         # Connect through to peer node
-        self.mailbox.connect(endpoint)
+        logger.debug("Connecting to peer {0} on endpoint {1}".format(self.identity, tcp_endpoint))
+
+        self.mailbox.connect(tcp_endpoint)
         self.endpoint = endpoint
         self.connected = True
         self.ready = False
@@ -60,27 +67,35 @@ class PyrePeer(object):
             self.endpoint = ""
             self.connected = False
             self.ready = False
+    # end disconnect
 
     # Send message to peer
     def send(self, msg):
         if self.connected:
             self.sent_sequence += 1
             msg.set_sequence(self.sent_sequence)
+
             try:
                 msg.send(self.mailbox)
             except zmq.EAGAIN as e:
                 self.disconnect()
                 return -1
+
+            logger.debug("Sending to peer {0} message {1}".format(self.identity, msg.struct_data))
+
         else:
-            print("Peer %s not connected" % peer)
+            logger.debug("Peer {0} is not connected".format(self.identity))
+    # end send
 
     # Return peer connected status
     def is_connected(self):
         return self.connected
+    # end is_connected
 
     # Return peer identity string
     def get_identity(self):
         return self.identity
+    # end get_identity
 
     # Return peer connection endpoint
     def get_endpoint(self):
@@ -88,19 +103,23 @@ class PyrePeer(object):
             return self.endpoint
         else:
             return ""
+    # end get_endpoint
 
     # Register activity at peer
     def refresh(self):
         self.evasive_at = time.time() + self.PEER_EVASIVE
         self.expired_at = time.time() + self.PEER_EXPIRED
+    # end refresh
 
     # Return future evasive time
     def evasive_at(self):
         return self.evasive_at
+    # end evasiv_at
 
     # Return future expired time
     def expired_at(self):
         return self.expired_at
+    # end expired_at
 
     # Return peer name
     def get_name(self):
@@ -113,22 +132,27 @@ class PyrePeer(object):
     # Return peer status
     def get_status(self):
         return self.status
+    # end get_status
 
     # Set peer status
     def set_status(self, status):
         self.status = status
+    # end set_status
 
     # Return peer ready state
     def get_ready(self):
         return self.ready
+    # end get_ready
 
     # Set peer ready state
     def set_ready(self, ready):
         self.ready = ready
+    # end set_ready
 
     # Get peer header value
     def get_header(self, key):
         return self.headers.get(key, None)
+    # end get_header
 
     # Get peer headers
     def get_headers(self):
@@ -137,6 +161,7 @@ class PyrePeer(object):
     # Set peer headers
     def set_headers(self, headers):
         self.headers = headers
+    # end set_headers
 
     # Check peer message sequence
     def check_message(self, msg):
@@ -147,4 +172,4 @@ class PyrePeer(object):
         else:
             self.want_sequence -= 1
             return False
-        
+    # end check_message
