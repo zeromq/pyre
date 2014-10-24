@@ -87,6 +87,11 @@ class ZreMsg(object):
         self.id = self._get_number1();
         #print("ZreMsg id: %i" % self.id)
 
+        version = self._get_number1()
+        if version != 2:
+            logger.debug("Invalid version {0}".format(version))
+            return None
+
         if self.id == ZreMsg.HELLO:
             self.unpack_hello()
         elif self.id == ZreMsg.WHISPER:
@@ -125,6 +130,9 @@ class ZreMsg(object):
         #print("ZreMsg: ", self.id)
         self._put_number1(self.id)
         #print(self.struct_data)
+        # add version
+        self._put_number1(2)
+
         if self.id == ZreMsg.HELLO:
             self.pack_hello()
         elif self.id == ZreMsg.WHISPER:
@@ -339,10 +347,6 @@ class ZreMsg(object):
         d = struct.pack('%is' %len(s), s.encode('UTF-8'))
         self.struct_data += d
 
-    def _zre_dictstring_to_dict(self, s):
-        l = s.split("=")
-        return { l[0]: l[1] }
-
     def unpack_hello(self):
         """unpack a zre hello packet
         
@@ -370,11 +374,12 @@ class ZreMsg(object):
         #print("post_group: needle is at: %i"% self._needle )
         self.status = self._get_number1()
         self.name = self._get_string()
-        headers_len = self._get_number1()
+        headers_len = self._get_number4()
         self.headers = {}
         for x in range(headers_len):
-            hdr_item = self._get_string()
-            self.headers.update(self._zre_dictstring_to_dict(hdr_item))
+            key = self._get_string()
+            val = self._get_long_string()
+            self.headers.update({key: val})
             #import ast
             #for hdr in hdrlist:
             #    # TODO: safer to use ast.literal_eval
@@ -405,22 +410,27 @@ class ZreMsg(object):
         self._put_string(self.name)
         self._put_number4(len(self.headers))
         for key, val in self.headers.items():
-            self._put_long_string("%s=%s" %(key, val))
+            self._put_string(key)
+            self._put_long_string(val)
 
 if __name__ == '__main__':
-    testdata = struct.pack('Hb3sHbb2sb2sb2sbbb3sb3s',
-                           11,       # sequence
-                           3,        # str length 
+    testdata = struct.pack('>Hb9sII2sI2sI2sbb4sIb1sI1sb1sI1s',
+                           11,         # sequence
+                           9,          # str length
                            b"192:20123",   # endpoint
-                           3,        # groups len
-                           2,b"g1",  # length + groupname
-                           2,b"g2",  # length + groupname
-                           2,b"g3",  # length + groupname
-                           4,        # status
-                           2,        # header len
-                           3,b"a=z", # length + dict
-                           3,b"b=x"  # length + dict
-                           )
+                           3,          # groups len
+                           2, b"g1",   # length + groupname
+                           2, b"g2",   # length + groupname
+                           2, b"g3",   # length + groupname
+                           4,          # status
+                           4, b"NAME", # name
+                           2,          # header len
+                           1, b"a",    # length + dict
+                           1, b"z",    # length + dict
+                           1, b"b",    # length + dict
+                           1, b"b"     # length + dict
+                    )
+
     print("New ZRE HELLO message")
     m = ZreMsg(ZreMsg.HELLO, data=testdata)
     print("Unpack a HELLO message")
@@ -429,4 +439,3 @@ if __name__ == '__main__':
     m.pack_hello()
     print("Unpack the packed HELLO message")
     m.unpack_hello()
-    

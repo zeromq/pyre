@@ -350,7 +350,7 @@ class PyreNode(object):
                 msg.set_group(grpname)
                 self.status += 1
                 msg.set_status(self.status)
-                for peer in self.peers:
+                for peer in self.peers.values():
                     peer.send(msg)
                 self.own_groups.pop(grpname)
                 print("Node is leaving group %s" % grpname)
