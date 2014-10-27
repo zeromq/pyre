@@ -70,7 +70,6 @@ class ZreMsg(object):
         frames = input_socket.recv_multipart()
         if input_socket.socket_type == zmq.ROUTER:
             self.address = frames.pop(0)
-            print(self.address, len(self.address))
             # we drop the first byte: TODO ref!
             self.address = uuid.UUID(bytes=self.address[1:])
             if not self.address:
