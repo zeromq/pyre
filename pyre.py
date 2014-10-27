@@ -14,7 +14,7 @@ from .zre_msg import ZreMsg
 from .pyre_peer import PyrePeer
 from .pyre_group import PyreGroup
 
-BEACON_VERSION = 2
+BEACON_VERSION = 1
 ZRE_DISCOVERY_PORT = 5670
 REAP_INTERVAL = 1.0  # Once per second
 
@@ -253,8 +253,9 @@ class PyreNode(object):
             p.send(m)
 
             # Now tell the caller about the peer
-            self._pipe.send_unicode("ENTER", flags=zmq.SNDMORE)
-            self._pipe.send(identity.bytes)
+            self._pipe.send_unicode("ENTER", zmq.SNDMORE)
+            self._pipe.send(identity.bytes, zmq.SNDMORE)
+            self._pipe.send_unicode(self.name)
         return p
 
     # Find or create group via its name
@@ -402,8 +403,7 @@ class PyreNode(object):
         zmsg.recv(self.inbox)
         #msgs = self.inbox.recv_multipart()
         # Router socket tells us the identity of this peer
-        #  Identity must be [1] followed by 16-byte UUID
-        id = uuid.UUID(bytes=zmsg.get_address()[1:])
+        id = zmsg.get_address()
         # On HELLO we may create the peer if it's unknown
         # On other commands the peer must already exist
         peer = self.peers.get(id)
@@ -421,12 +421,12 @@ class PyreNode(object):
             peer.set_ready(True)
 
         # Ignore command if peer isn't ready
-        if not p or not p.get_ready():
-            logger.warning("Peer {0} isn't ready".format(p))
+        if not peer or not peer.get_ready():
+            logger.warning("Peer {0} isn't ready".format(peer))
             return
 
-        if not p.check_message(zmsg):
-            logger.warning("{0} lost messages from {1}".format(self.identity, p.identity))
+        if not peer.check_message(zmsg):
+            logger.warning("{0} lost messages from {1}".format(self.identity, peer.identity))
 
         if zmsg.id == ZreMsg.HELLO:
             # Join peer to listed groups
@@ -466,7 +466,7 @@ class PyreNode(object):
             self.leave_peer_group(zmsg.get_group())
             peer.refresh()
             self.leave_peer_group(p, zmsg.get_group())
-        p.refresh()
+        peer.refresh()
 
     def recv_beacon(self):
         msgs = self.beacon.get_socket().recv_multipart()
