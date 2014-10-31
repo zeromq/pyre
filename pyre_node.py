@@ -111,7 +111,7 @@ class PyreNode(object):
         #self.beacon_port = 0
 
     def bind(self, endpoint):
-        print("Not implemented")
+        logger.warning("Not implemented")
 
     # Send message to all peers
     def send_peer(self, peer, msg):
@@ -332,9 +332,7 @@ class PyreNode(object):
         # On HELLO we may create the peer if it's unknown
         # On other commands the peer must already exist
         peer = self.peers.get(id)
-        print("recv peer", peer)
         if zmsg.id == ZreMsg.HELLO:
-            print("HELLO")
             if (peer):
                 # remove fake peers
                 if peer.get_ready():
@@ -398,7 +396,6 @@ class PyreNode(object):
             assert(zmsg.get_status() == peer.get_status())
         # Activity from peer resets peer timers
         peer.refresh()
-        print("END RECV PEER")
 
     def recv_beacon(self):
         # Get IP address and beacon of peer
@@ -467,16 +464,12 @@ class PyreNode(object):
 
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
                 self.recv_api()
-                print("api")
             if self.inbox in items and items[self.inbox] == zmq.POLLIN:
                 self.recv_peer()
-                print("peer")
             if self.beacon.get_socket() in items and items[self.beacon.get_socket()] == zmq.POLLIN:
-                print("beacon")
                 self.recv_beacon()
             if time.time() >= reap_at:
                 reap_at = time.time() + REAP_INTERVAL
                 # Ping all peers and reap any expired ones
                 for peer_id in self.peers.copy().keys():
-                    print("ping", peer_id)
                     self.ping_peer(peer_id)
