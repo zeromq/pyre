@@ -56,7 +56,7 @@ class ZBeacon(object):
         self._hostname = self._pipe.recv_unicode()
 
     def __del__(self):
-        self._pipe.send_unicode("TERMINATE")
+        self._pipe.send_unicode("$TERM")
         # wait for confirmation
         msg = b''
 
@@ -269,7 +269,7 @@ class ZBeaconAgent(object):
         elif cmd == "UNSUBSCRIBE":
             self.filter = None
 
-        elif cmd == "TERMINATE":
+        elif cmd == "$TERM":
             self._terminated = True
             self._pipe.send_unicode("OK")
 

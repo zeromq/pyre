@@ -239,7 +239,7 @@ class PyreNode(object):
             # TODO: zyre_node_dump (self);
             pass
         elif command == "$TERM":
-            self.terminated = True
+            self._terminated = True
 
         else:
             logger.warning("Unkown Node API command: {0}".format(command))
@@ -455,7 +455,7 @@ class PyreNode(object):
         # Signal actor successfully initialized
         self._pipe.signal()
         reap_at = time.time() + REAP_INTERVAL
-        while(True):
+        while not self._terminated:
             timeout = reap_at - time.time()
             if timeout < 0:
                 timeout = 0

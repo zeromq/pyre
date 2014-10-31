@@ -89,7 +89,7 @@ class Pyre(object):
         # TODO wait signal
 
     def stop(self):
-        self.actor.send_unicode("STOP", flags=zmq.DONTWAIT)
+        self.actor.send_unicode("$TERM", flags=zmq.DONTWAIT)
 
     # Receive next message from node
     def recv(self):
