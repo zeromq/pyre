@@ -259,7 +259,11 @@ class PyreNode(object):
 
             p = PyrePeer(self._ctx, identity)
             self.peers[identity] = p
+            #zyre_peer_set_origin (peer, self->name);
+            #zyre_peer_set_verbose (peer, self->verbose);
             p.connect(self.identity, endpoint)
+
+            # Handshake discovery by sending HELLO as first message
             m = ZreMsg(ZreMsg.HELLO)
             m.set_endpoint(self.endpoint)
             m.set_groups(self.own_groups.keys())
@@ -268,10 +272,6 @@ class PyreNode(object):
             m.set_headers(self.headers)
             p.send(m)
 
-            # Now tell the caller about the peer
-            self._pipe.send_unicode("ENTER", zmq.SNDMORE)
-            self._pipe.send(identity.bytes, zmq.SNDMORE)
-            self._pipe.send_unicode(self.name)
         return p
 
     #  Remove peer from group, if it's a member

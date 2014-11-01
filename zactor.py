@@ -49,9 +49,9 @@ class ZActor(object):
         self.shim_handler = actor
         self.shim_args = args
 
-        thread = threading.Thread(target=actor, args=(self.ctx, self.shim_pipe)+args, kwargs=kwargs)
-        #thread.daemon = True
-        thread.start()
+        self.thread = threading.Thread(target=actor, args=(self.ctx, self.shim_pipe)+args, kwargs=kwargs)
+        #self.thread.daemon = True
+        self.thread.start()
 
         # Mandatory handshake for new actor so that constructor returns only
         # when actor has also initialized. This eliminates timing issues at
@@ -78,6 +78,9 @@ class ZActor(object):
 
     def recv(self, *args, **kwargs):
         return self.pipe.recv(*args, **kwargs)
+
+    def recv_multipart(self, *args, **kwargs):
+        return self.pipe.recv_multipart(*args, **kwargs)
 
     # --------------------------------------------------------------------------
     # Probe the supplied object, and report if it looks like a zactor_t.
