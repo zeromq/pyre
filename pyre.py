@@ -41,6 +41,11 @@ class Pyre(object):
             self.actor.send_unicode("SET NAME", zmq.SNDMORE)
             self.actor.send_unicode(self.name)
 
+    def __del__(self):
+        # We need to explicitly destroy the actor 
+        # to make sure our node thread is stopped
+        self.actor.destroy()
+
     # Return our node UUID, after successful initialization
     def get_uuid(self):
         if not self.uuid:
@@ -89,11 +94,11 @@ class Pyre(object):
         # TODO wait signal
 
     def stop(self):
-        self.actor.send_unicode("$TERM", flags=zmq.DONTWAIT)
+        self.actor.send_unicode("STOP", flags=zmq.DONTWAIT)
 
     # Receive next message from node
     def recv(self):
-        return self.actor.recv()
+        return self.actor.recv_multipart()
 
     # Join a group
     def join(self, group):
