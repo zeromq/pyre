@@ -27,6 +27,9 @@ import random
 import zmq
 import threading
 from . import zsocket
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ZActor(object):
     
@@ -47,10 +50,10 @@ class ZActor(object):
         self.pipe.bind(self.endpoint)
         self.shim_pipe.connect(self.endpoint)
         self.shim_handler = actor
-        self.shim_args = args
+        self.shim_args = (self.ctx, self.shim_pipe)+args
 
-        self.thread = threading.Thread(target=actor, args=(self.ctx, self.shim_pipe)+args, kwargs=kwargs)
-        #self.thread.daemon = True
+        self.thread = threading.Thread(target=self.shim_handler, args=self.shim_args, kwargs=kwargs)
+        self.thread.daemon = True
         self.thread.start()
 
         # Mandatory handshake for new actor so that constructor returns only
@@ -63,6 +66,9 @@ class ZActor(object):
         # If the pipe isn't connected any longer, assume child thread
         # has already quit due to other reasons and don't collect the
         # exit signal.
+        if self.tag == 0xDeadBeef:
+            logger.warning("Zactor: already destroyed")
+            return
         self.pipe.set(zmq.SNDTIMEO, 0)
         self.pipe.send_unicode("$TERM")
         # misschien self.pipe.wait()????
@@ -95,7 +101,7 @@ class ZActor(object):
     def resolve(self):
         return self.pipe
 
-def echo_actor(pipe, *args):
+def echo_actor(ctx, pipe, *args):
     # Do some initialization
     pipe.signal()
     terminated = False;

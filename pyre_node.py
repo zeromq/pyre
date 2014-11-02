@@ -108,7 +108,9 @@ class PyreNode(object):
 
         #self.port = endpoint.split(':')[2]
         #self.bound = True
-        #self.beacon_port = 0
+        self.beacon_port = 0
+        # Stop polling on inbox
+        self.poller.unregister(self.inbox)
 
     def bind(self, endpoint):
         logger.warning("Not implemented")
@@ -157,6 +159,7 @@ class PyreNode(object):
         elif command == "STOP":
             # zsock_signal (self->pipe, zyre_node_stop (self));
             self.stop()
+            self._pipe.signal()
         elif command == "WHISPER":
             # Get peer to send message to
             peer_id = uuid.UUID(bytes=request.pop(0))
@@ -239,6 +242,8 @@ class PyreNode(object):
             # TODO: zyre_node_dump (self);
             pass
         elif command == "$TERM":
+            # this is often not printed if program terminates
+            logger.debug("ZyreNode: shutting down")
             self._terminated = True
 
         else:
