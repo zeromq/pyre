@@ -3,11 +3,10 @@ from pyre import zhelper
 import zmq 
 import uuid
 import logging
-
+import sys
 
 def chat_task(ctx, pipe):
     n = Pyre(ctx)
-    #n.start()
     n.join("CHAT")
 
     poller = zmq.Poller()
@@ -37,12 +36,16 @@ def chat_task(ctx, pipe):
 if __name__ == '__main__':
     # Create a StreamHandler for debugging
     logger = logging.getLogger("pyre")
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     logger.addHandler(logging.StreamHandler())
     logger.propagate = False
 
     ctx = zmq.Context()
     chat_pipe = zhelper.zthread_fork(ctx, chat_task)
+    # input in python 2 is different
+    if sys.version_info.major < 3:
+        input = raw_input
+
     while True:
         try:
             msg = input()
@@ -50,4 +53,6 @@ if __name__ == '__main__':
         except (KeyboardInterrupt, SystemExit):
             break
     chat_pipe.send("$$STOP".encode('utf_8'))
+    import time
+    time.sleep(1)
     print("FINISHED")
