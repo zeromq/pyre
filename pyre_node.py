@@ -167,9 +167,9 @@ class PyreNode(object):
             # if peer doesn't exist (may have been destroyed)
             if self.peers.get(peer_id):
                 msg = ZreMsg(ZreMsg.WHISPER)
-                msg.set_address(peer)
+                msg.set_address(peer_id)
                 msg.content = request
-                self.peers[peer].send(msg)
+                self.peers[peer_id].send(msg)
         elif command == "SHOUT":
             # Get group to send message to
             grpname = request.pop(0).decode('UTF-8')
