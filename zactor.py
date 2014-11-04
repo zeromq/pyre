@@ -53,7 +53,8 @@ class ZActor(object):
         self.shim_args = (self.ctx, self.shim_pipe)+args
 
         self.thread = threading.Thread(target=self.shim_handler, args=self.shim_args, kwargs=kwargs)
-        self.thread.daemon = True
+        # we manage threads exiting ourselves!
+        self.thread.daemon = False
         self.thread.start()
 
         # Mandatory handshake for new actor so that constructor returns only

@@ -245,7 +245,7 @@ class ZBeaconAgent(object):
     def api_command(self):
         cmds = self._pipe.recv_multipart()
 
-        logger.debug("ZBeaconApiCommand: {0}".format(cmds))
+        #logger.debug("ZBeaconApiCommand: {0}".format(cmds))
 
         cmd = cmds.pop(0)
         cmd = cmd.decode('UTF-8')

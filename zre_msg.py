@@ -1,6 +1,6 @@
 """ These are the zre_msg messages
     HELLO - Greet a peer so it can connect back to us
-        sequence      number 2
+        sequence      number 2  Cyclic sequence number
         endpoint      string
         groups        strings
         status        number 1
@@ -245,23 +245,33 @@ class ZreMsg(object):
 
     # Get the zre_msg id and printable command
     def get_id(self):
-        print("E: NOT IMPLEMENTED")
-        pass
+        return self.id
 
     def set_id(self, id):
-        print("E: NOT IMPLEMENTED")
-        pass
-    
+        logger.warning("E: set_id NOT IMPLEMENTED")
+
+    def get_command(self):
+        if self.id == ZreMsg.HELLO:
+            return "HELLO"
+        if self.id == ZreMsg.WHISPER:
+            return "WHISPER"
+        if self.id == ZreMsg.SHOUT:
+            return "SHOUT"
+        if self.id == ZreMsg.JOIN:
+            return "JOIN"
+        if self.id == ZreMsg.LEAVE:
+            return "LEAVE"
+        if self.id == ZreMsg.PING:
+            return "PING"
+        if self.id == ZreMsg.PINGOK:
+            return "PINGOK"
+
     def get_name(self):
         return self.name
     
     def set_name(self, name):
         self.name = name
     
-    def command(self):
-        print("E: NOT IMPLEMENTED")
-        pass
-
     # Get/set the sequence field
     def get_sequence(self):
         return self.sequence

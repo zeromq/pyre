@@ -264,7 +264,8 @@ class PyreNode(object):
 
             p = PyrePeer(self._ctx, identity)
             self.peers[identity] = p
-            #zyre_peer_set_origin (peer, self->name);
+            p.set_origin(self.name);
+            # TODO: this could be handy, to set verbosity on a specific peer
             #zyre_peer_set_verbose (peer, self->verbose);
             p.connect(self.identity, endpoint)
 
@@ -354,8 +355,9 @@ class PyreNode(object):
             logger.warning("Peer {0} isn't ready".format(peer))
             return
 
-        if not peer.check_message(zmsg):
-            logger.warning("{0} lost messages from {1}".format(self.identity, peer.identity))
+        if peer.messages_lost(zmsg):
+            logger.warning("{0} messages lost from {1}".format(self.identity, peer.identity))
+            self.remove_peer(peer)
             return
 
         # Now process each command
