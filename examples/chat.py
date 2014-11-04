@@ -53,6 +53,4 @@ if __name__ == '__main__':
         except (KeyboardInterrupt, SystemExit):
             break
     chat_pipe.send("$$STOP".encode('utf_8'))
-    import time
-    time.sleep(1)
     print("FINISHED")
