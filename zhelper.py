@@ -71,6 +71,10 @@ def get_ifaddrs():
     Found this at http://pastebin.com/wxjai3Mw with some modification to
     make it work on OSX.
     """
+    if platform.startswith("win"):
+        print("Windows platform not supported")
+        return
+
     # getifaddr structs
     class ifa_ifu_u(Union):
         _fields_ = [
