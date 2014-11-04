@@ -26,6 +26,7 @@ import zmq
 import time
 import struct
 import ipaddress
+import sys
 from sys import platform
 import logging
 
@@ -153,6 +154,9 @@ class ZBeaconAgent(object):
                             ifc = ipaddress.ip_interface("%s/%s" %(self.address, netmask))
                             self.announce_addr = str(ifc.network.broadcast_address)
 
+	# ipaddress module wants unicode strings which is default in py3
+        if (sys.version_info.major < 3):
+            self.announce_addr = self.announce_addr.decode('utf-8')
         self._init_socket()
         self._pipe.send_unicode(self.address)
         self.run()

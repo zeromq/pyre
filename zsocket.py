@@ -19,7 +19,7 @@ import struct
 class ZSocket(zmq.Socket):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(zmq.Socket, self).__init__(*args, **kwargs)
 
     #  --------------------------------------------------------------------------
     #  Send a signal over a socket. A signal is a zero-byte message.
