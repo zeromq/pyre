@@ -97,6 +97,7 @@ class PyreNode(object):
         logger.debug("Node identity: {0}".format(self.identity))
 
     def stop(self):
+        logger.debug("Pyre node: stopping beacon")
         if self.beacon:
             stop_transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
                                    BEACON_VERSION, self.identity.bytes, 
@@ -243,7 +244,7 @@ class PyreNode(object):
             pass
         elif command == "$TERM":
             # this is often not printed if program terminates
-            logger.debug("ZyreNode: shutting down")
+            logger.debug("Pyre node: shutting down")
             self._terminated = True
 
         else:
@@ -430,9 +431,11 @@ class PyreNode(object):
             peer = self.peers.get(peer_id)
             # remove the peer (delete)
             if peer:
+                logger.debug("Received 0 port beacon, removing peer {0}".format(peer))
                 self.remove_peer(peer)
 
             else:
+                logger.warning(self.peers)
                 logger.warning("We don't know peer id {0}".format(peer_id))
 
     # TODO: Handle gossip dat
