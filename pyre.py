@@ -27,15 +27,10 @@ class Pyre(object):
         self.uuid = None
         self.name = None
         self.verbose = False
-        self._inbox = ZSocket(ctx, zmq.PAIR)
-        self._inbox.bind("inproc://pyre-%s" %hash(self._inbox))
-        #self._inbox = zhelper.zthread_fork(self._ctx, PyreNode)
-
-        self._outbox = ZSocket(self._ctx, zmq.PAIR)
+        self._inbox, self._outbox = zhelper.zcreate_pipe(self._ctx)
 
         # Start node engine and wait for it to be ready
         self.actor = ZActor(self._ctx, PyreNode, self._outbox)
-        self._outbox.connect("inproc://pyre-%s" %hash(self._inbox))
         # Send name, if any, to node ending  
         if (self.name):
             self.actor.send_unicode("SET NAME", zmq.SNDMORE)

@@ -23,11 +23,11 @@
 # method that would take a zsock_t argument, including methods in zframe,
 # zmsg, zstr, zpoller, and zloop.
 
-import random
 import zmq
 import threading
-from . import zsocket
 import logging
+from . import zsocket
+from . import zhelper
 
 logger = logging.getLogger(__name__)
 
@@ -39,20 +39,11 @@ class ZActor(object):
         self.tag = self.ZACTOR_TAG
         self.ctx = ctx
         # Create front-to-back pipe pair
-        self.pipe = zsocket.ZSocket(ctx, zmq.PAIR)
-        self.shim_pipe = zsocket.ZSocket(ctx, zmq.PAIR)
-        # TODO: set HWM
-        self.pipe.set_hwm(1000)
-        self.shim_pipe.set_hwm(1000)
-        #  Now bind and connect pipe ends
-        self.endpoint = "inproc://zactor-%04x-%04x\n"\
-                 %(random.randint(0, 0x10000), random.randint(0, 0x10000))
-        self.pipe.bind(self.endpoint)
-        self.shim_pipe.connect(self.endpoint)
+        self.pipe, self.shim_pipe = zhelper.zcreate_pipe(ctx)
         self.shim_handler = actor
         self.shim_args = (self.ctx, self.shim_pipe)+args
-
-        self.thread = threading.Thread(target=self.shim_handler, args=self.shim_args, kwargs=kwargs)
+        self.shim_kwargs = kwargs
+        self.thread = threading.Thread(target=self.run)
         # we manage threads exiting ourselves!
         self.thread.daemon = False
         self.thread.start()
@@ -61,6 +52,12 @@ class ZActor(object):
         # when actor has also initialized. This eliminates timing issues at
         # application start up.
         self.pipe.wait()
+
+    def run(self):
+        self.shim_handler(*self.shim_args, **self.shim_kwargs)
+        self.shim_pipe.set(zmq.SNDTIMEO, 0)
+        self.shim_pipe.signal()
+        self.shim_pipe.close()
 
     def destroy(self):
         # Signal the actor to end and wait for the thread exit code
