@@ -235,9 +235,10 @@ class ZBeaconAgent(object):
                     self._udp_sock.bind(("0.0.0.0", self._port))
 
                 else:
-                    # on linux we bind and send to the broadcast address
+                    # on posix we bind to ourt address and send to 
+		    # the broadcast address
                     self.announce_address = self.broadcast_address
-                    self._udp_sock.bind((str(self.broadcast_address), self._port))
+                    self._udp_sock.bind((str(self.address), self._port))
                 logger.debug("Set up a broadcast beacon on {0}:{1}".format(self.announce_address, self._port))
 
 
