@@ -263,7 +263,7 @@ class ZreMsg(object):
             return "LEAVE"
         if self.id == ZreMsg.PING:
             return "PING"
-        if self.id == ZreMsg.PINGOK:
+        if self.id == ZreMsg.PING_OK:
             return "PING_OK"
 
     def get_name(self):
