@@ -219,8 +219,6 @@ class ZBeaconAgent(object):
 
             else:
                 # Only for broadcast
-                logger.debug("Setting up a broadcast beacon on {0}:{1}".format(self.announce_address, self._port))
-
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -233,13 +231,15 @@ class ZBeaconAgent(object):
                     pass
 
                 # if we are broadcasting we need to send to the broadcast address
-                self.announce_address = self.broadcast_address
                 if platform.startswith("win"):
                     self._udp_sock.bind(("0.0.0.0", self._port))
 
                 else:
-                    # on linux we bind to the broadcast address
+                    # on linux we bind and send to the broadcast address
+                    self.announce_address = self.broadcast_address
                     self._udp_sock.bind((str(self.broadcast_address), self._port))
+                logger.debug("Set up a broadcast beacon on {0}:{1}".format(self.announce_address, self._port))
+
 
         except socket.error:
             logger.exception("Initializing of {0} raised an exception".format(self.__class__.__name__))
