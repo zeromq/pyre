@@ -262,6 +262,12 @@ def get_ifaddrs():
                 si = sockaddr_in.from_address(ifa.ifa_netmask)
                 data['netmask'] = inet_ntop(AF_INET, si.sin_addr)
 
+            # check if a valid broadcast address is set and retrieve it
+            # 0x2 == IFF_BROADCAST
+            if ifa.ifa_flags & 0x2:
+                si = sockaddr_in.from_address(ifa.ifa_ifu.ifu_broadaddr)
+                data['broadcast'] = inet_ntop(AF_INET, si.sin_addr)
+
         if sa.sa_family == AF_INET6:
             if ifa.ifa_addr is not None:
                 si = sockaddr_in6.from_address(ifa.ifa_addr)
