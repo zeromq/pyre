@@ -445,14 +445,14 @@ class PyreNode(object):
     def ping_peer(self, peer_id):
         peer = self.peers.get(peer_id)
         if time.time() > peer.expired_at:
-            logger.debug("(%s) peer expired name=%s endpoint=%s".format(self.name, peer.get_name(), peer.get_endpoint()))
+            logger.debug("({0}) peer expired name={1} endpoint={2}".format(self.name, peer.get_name(), peer.get_endpoint()))
             self.remove_peer(peer)
         elif time.time() > peer.evasive_at:
             # If peer is being evasive, force a TCP ping.
             # TODO: do this only once for a peer in this state;
             # it would be nicer to use a proper state machine
             # for peer management.
-            logger.debug("(%s) peer seems dead/slow name=%s endpoint=%s".format(self.name, peer.get_name(), peer.get_endpoint()))
+            logger.debug("({0}) peer seems dead/slow name={1} endpoint={2}".format(self.name, peer.get_name(), peer.get_endpoint()))
             msg = ZreMsg(ZreMsg.PING)
             peer.send(msg)
 
