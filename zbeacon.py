@@ -230,16 +230,22 @@ class ZBeaconAgent(object):
                 except AttributeError:
                     pass
 
-                # if we are broadcasting we need to send to the broadcast address
+                # Platform specifics
                 if platform.startswith("win"):
                     self._udp_sock.bind(("0.0.0.0", self._port))
 
+		# Not sure if freebsd should be included
+                elif platform.startswith("darwin") or platform.startswith("freebsd"):
+                    self.announce_address = self.broadcast_address
+                    self._udp_sock.bind(("", self._port))
+
                 else:
-                    # on posix we bind to ourt address and send to 
+                    # on linux we bind to the broadcast address and send to 
 		    # the broadcast address
                     self.announce_address = self.broadcast_address
-                    self._udp_sock.bind((str(self.address), self._port))
-                logger.debug("Set up a broadcast beacon on {0}:{1}".format(self.announce_address, self._port))
+                    self._udp_sock.bind((self.broadcast_address, self._port))
+
+                logger.debug("Set up a broadcast beacon to {0}:{1}".format(self.announce_address, self._port))
 
 
         except socket.error:
