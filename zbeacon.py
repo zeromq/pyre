@@ -243,7 +243,7 @@ class ZBeaconAgent(object):
                     # on linux we bind to the broadcast address and send to 
 		    # the broadcast address
                     self.announce_address = self.broadcast_address
-                    self._udp_sock.bind((self.broadcast_address, self._port))
+                    self._udp_sock.bind((str(self.broadcast_address), self._port))
 
                 logger.debug("Set up a broadcast beacon to {0}:{1}".format(self.announce_address, self._port))
 
