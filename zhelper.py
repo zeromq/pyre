@@ -502,7 +502,7 @@ def get_win_ifaddrs():
         d = {}
         d['addr'] = "{0}".format(ip)
         d['netmask'] = "{0}".format(ip_if.netmask)
-        d['bcast'] = "{0}".format(ip_if.network.broadcast_address)
+        d['broadcast'] = "{0}".format(ip_if.network.broadcast_address)
         d['network'] = "{0}".format(ip_if.network.network_address)
         result[i.description] = { ad.family : d}
     return result
