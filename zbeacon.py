@@ -142,27 +142,22 @@ class ZBeaconAgent(object):
         if (sys.version_info.major < 3):
             announce_addr = announce_addr.decode('utf-8')
         self.announce_address = ipaddress.IPv4Address(announce_addr)
-        # TODO This results in just the ip address, for windows we set specific values
-        if platform.startswith("win"):
-            self.address = ipaddress.IPv4Address(socket.gethostbyname(socket.gethostname()))
-            self.network_address = ipaddress.IPv4Address(0)
-        else:
-            # find a non local ipaddress 
-            # TODO: only choose highest available ipaddress
-            netinf = zhelper.get_ifaddrs()
-            for iface in netinf:
-                # ipv4 only currently and needs a valid broadcast address
-                for family in netinf[iface]:
-                    if family == 2 and netinf[iface][family].get('broadcast'):
-                        ipadr = ipaddress.IPv4Address(netinf[iface][family]['addr'])
-                        if ipadr > self.address:
-                            netmask = netinf[iface][family]['netmask']
-                            ifc = ipaddress.ip_interface("%s/%s" %(ipadr, netmask))
-                            self.address = ipadr
-                            self.network_address = ifc.network.network_address
-                            self.broadcast_address = ifc.network.broadcast_address
-                            self.interface_name = iface
-                            assert(netinf[iface][family].get('broadcast') == str(self.broadcast_address))
+        # find a non local ipaddress 
+        # TODO: only choose highest available ipaddress
+        netinf = zhelper.get_ifaddrs()
+        for iface in netinf:
+            # ipv4 only currently and needs a valid broadcast address
+            for family in netinf[iface]:
+                if family == 2 and netinf[iface][family].get('broadcast'):
+                    ipadr = ipaddress.IPv4Address(netinf[iface][family]['addr'])
+                    if ipadr > self.address:
+                        netmask = netinf[iface][family]['netmask']
+                        ifc = ipaddress.ip_interface("%s/%s" %(ipadr, netmask))
+                        self.address = ipadr
+                        self.network_address = ifc.network.network_address
+                        self.broadcast_address = ifc.network.broadcast_address
+                        self.interface_name = iface
+                        assert(netinf[iface][family].get('broadcast') == str(self.broadcast_address))
 
         self._init_socket()
         self._pipe.send_unicode(str(self.address))
@@ -232,7 +227,8 @@ class ZBeaconAgent(object):
 
                 # Platform specifics
                 if platform.startswith("win"):
-                    self._udp_sock.bind(("0.0.0.0", self._port))
+                    self.announce_address = self.broadcast_address
+                    self._udp_sock.bind(("", self._port))
 
 		# Not sure if freebsd should be included
                 elif platform.startswith("darwin") or platform.startswith("freebsd"):
