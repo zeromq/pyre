@@ -150,7 +150,7 @@ class ZBeaconAgent(object):
             for family in netinf[iface]:
                 if family == 2 and netinf[iface][family].get('broadcast'):
                     ipadr = ipaddress.IPv4Address(netinf[iface][family]['addr'])
-                    if ipadr > self.address:
+                    if not ipadr.is_loopback():
                         netmask = netinf[iface][family]['netmask']
                         ifc = ipaddress.ip_interface("%s/%s" %(ipadr, netmask))
                         self.address = ipadr
