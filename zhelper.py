@@ -232,7 +232,7 @@ def get_ifaddrs():
     if result:
         return None
     ifa = ifaddrs.from_address(ptr.value)
-    result = {}
+    result = []
 
     while ifa:
         # Python 2 gives us a string, Python 3 an array of bytes
@@ -240,9 +240,6 @@ def get_ifaddrs():
             name = ifa.ifa_name
         else:
             name = ifa.ifa_name.decode()
-
-        if name not in result:
-            result[name] = {}
 
         if ifa.ifa_addr:
             sa = sockaddr.from_address(ifa.ifa_addr)
@@ -303,9 +300,16 @@ def get_ifaddrs():
                 data['addr'] = addr
 
         if len(data) > 0:
-            if sa.sa_family not in result[name]:
-                result[name][sa.sa_family] = {}
-            result[name][sa.sa_family].update(data)
+            iface = {}
+            for interface in result:
+                if name in interface.keys():
+                    iface = interface
+                    break
+            if iface:
+                iface[name][sa.sa_family] = data
+            else:
+                iface[name] = { sa.sa_family : data }
+                result.append(iface)
 
         if ifa.ifa_next:
             ifa = ifaddrs.from_address(ifa.ifa_next)
@@ -482,7 +486,7 @@ def get_win_ifaddrs():
             yield struct_p.contents
             struct_p = struct_p.contents.next
 
-    result = {}
+    result = []
     for i in GetAdaptersAddresses():
         #print("--------------------------------------")
         #print("IF: {0}".format(i.description))
@@ -499,11 +503,24 @@ def get_win_ifaddrs():
         #print("\tnetwork: {0}".format(ip_if.network.network_address))
         #print("\tbroadcast: {0}".format(ip_if.network.broadcast_address))
         #print("\tmask length: {0}".format(fu.on_link_prefix_length))
-        d = {}
-        d['addr'] = "{0}".format(ip)
-        d['netmask'] = "{0}".format(ip_if.netmask)
-        d['broadcast'] = "{0}".format(ip_if.network.broadcast_address)
-        d['network'] = "{0}".format(ip_if.network.network_address)
-        result[i.description] = { ad.family : d}
+        data = {}
+        data['addr'] = "{0}".format(ip)
+        data['netmask'] = "{0}".format(ip_if.netmask)
+        data['broadcast'] = "{0}".format(ip_if.network.broadcast_address)
+        data['network'] = "{0}".format(ip_if.network.network_address)
+
+        name = i.description 
+        #result[i.description] = { ad.family : d}
+        iface = {}
+        for interface in result:
+            if name in interface.keys():
+                iface = interface
+                break
+        if iface:
+            iface[name][ad.family] = data
+        else:
+            iface[name] = { ad.family : data }
+            result.append(iface)
+
     return result
 
