@@ -147,17 +147,17 @@ class ZBeaconAgent(object):
         netinf = zhelper.get_ifaddrs()
         for iface in netinf:
             # ipv4 only currently and needs a valid broadcast address
-            for family in netinf[iface]:
-                if family == 2 and netinf[iface][family].get('broadcast'):
-                    ipadr = ipaddress.IPv4Address(netinf[iface][family]['addr'])
-                    if not ipadr.is_loopback():
-                        netmask = netinf[iface][family]['netmask']
+            for name, data in iface.items():
+                if data.get(2) and data[2].get('broadcast'):
+                    ipadr = ipaddress.IPv4Address(data[2].get('addr'))
+                    if not ipadr.is_loopback:
+                        netmask = data[2].get('netmask')
                         ifc = ipaddress.ip_interface("%s/%s" %(ipadr, netmask))
                         self.address = ipadr
                         self.network_address = ifc.network.network_address
                         self.broadcast_address = ifc.network.broadcast_address
                         self.interface_name = iface
-                        assert(netinf[iface][family].get('broadcast') == str(self.broadcast_address))
+                        assert(data[2].get('broadcast') == str(self.broadcast_address))
                         break
             if self.address:
                 break
