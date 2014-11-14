@@ -27,6 +27,9 @@ class PyrePeer(object):
         self.want_sequence = 0   # Incoming message sequence
         self.headers = []        # Peer headers
 
+    def __del__(self):
+        self.disconnect()
+
     # Connect peer mailbox
     def connect(self, reply_to, endpoint):
         if self.connected:
@@ -42,6 +45,8 @@ class PyrePeer(object):
         # zero byte at the start, which libzmq does not like for
         # historical and arguably bogus reasons that it nonetheless
         # enforces.
+        # we set linger to 0 by default (In zyre this is done by czmq's zsys)
+        self.mailbox.setsockopt(zmq.LINGER, 0)
         self.mailbox.setsockopt(zmq.IDENTITY, b'1' + reply_to.bytes)
         # Set a high-water mark that allows for reasonable activity
         self.mailbox.setsockopt(zmq.SNDHWM, PyrePeer.PEER_EXPIRED * 100)
@@ -61,6 +66,7 @@ class PyrePeer(object):
     def disconnect(self):
         # If connected, destroy socket and drop all pending messages
         if (self.connected):
+            logger.debug("{0} Disconnecting peer {1}".format(self.origin, self.name))
             self.mailbox.close()
             self.mailbox = None
             self.endpoint = ""
@@ -78,6 +84,10 @@ class PyrePeer(object):
                 msg.send(self.mailbox)
             except zmq.EAGAIN as e:
                 self.disconnect()
+                logger.debug("{0} Error while sending {1} to peer={2} sequence={3}".format(self.origin, 
+                                                                            msg.get_command(), 
+                                                                            self.name, 
+                                                                            msg.get_sequence()))
                 return -1
 
             logger.debug("{0} send {1} to peer={2} sequence={3}".format(self.origin, 
