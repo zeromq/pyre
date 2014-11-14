@@ -131,7 +131,7 @@ class ZBeaconAgent(object):
         # Beacon filter data
         self._filter = self.transmit  # not used?
         # Our own address
-        self.address = ipaddress.IPv4Address(0)
+        self.address = None
         # Our network address
         self.network_address = None
         # Our broadcast address
@@ -158,6 +158,9 @@ class ZBeaconAgent(object):
                         self.broadcast_address = ifc.network.broadcast_address
                         self.interface_name = iface
                         assert(netinf[iface][family].get('broadcast') == str(self.broadcast_address))
+                        break
+            if self.address:
+                break
 
         self._init_socket()
         self._pipe.send_unicode(str(self.address))
