@@ -233,14 +233,14 @@ class ZBeaconAgent(object):
                     self.announce_address = self.broadcast_address
                     self._udp_sock.bind(("", self._port))
 
-		# Not sure if freebsd should be included
+                # Not sure if freebsd should be included
                 elif platform.startswith("darwin") or platform.startswith("freebsd"):
                     self.announce_address = self.broadcast_address
                     self._udp_sock.bind(("", self._port))
 
                 else:
-                    # on linux we bind to the broadcast address and send to 
-		    # the broadcast address
+                    # on linux we bind to the broadcast address and send to
+                    # the broadcast address
                     self.announce_address = self.broadcast_address
                     self._udp_sock.bind((str(self.broadcast_address), self._port))
 

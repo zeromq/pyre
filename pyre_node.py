@@ -301,8 +301,11 @@ class PyreNode(object):
     def require_peer_group(self, groupname):
         grp = self.peer_groups.get(groupname)
         if not grp:
-            grp = PyreGroup(groupname)
+            # somehow a dict containing peers is passed if
+            # I don't force the peers arg to an empty dict
+            grp = PyreGroup(groupname, peers={})
             self.peer_groups[groupname] = grp
+
         return grp
 
     def join_peer_group(self, peer, groupname):
