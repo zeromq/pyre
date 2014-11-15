@@ -164,6 +164,14 @@ For now use Pip:
         print("FINISHED")
 ```
 
+Look at the [ZOCP](https://github.com/z25/pyZOCP) project for examples of how Pyre can be 
+integrated into different environments and frameworks, i.e.:
+- [Urwid](https://github.com/z25/pyZOCP/blob/master/examples/urwZOCP.py)
+- [Blender](https://github.com/z25/pyZOCP/blob/master/examples/BpyZOCP.py)
+- Glib
+- QT
+
+
 Pyre uses the [Python Logging](https://docs.python.org/3.4/library/logging.html) module.
 To change the debug level:
 
