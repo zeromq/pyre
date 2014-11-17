@@ -221,12 +221,12 @@ class PyreNode(object):
             self._pipe.send_unicode("p", zmq.SNDMORE)
             self._pipe.send_unicode("%s" %self.peers)
         elif command == "PEER ENDPOINT":
-            id = request.pop(0).decode('UTF-8')
+            id = uuid.UUID(bytes=request.pop(0))
             peer = self.peers[id]
             self._pipe.send_unicode("s", zmq.SNDMODE)
             self._pipe.send_unicode("%s" %peer.get_endpoint())
         elif command == "PEER HEADER":
-            id = request.pop(0).decode('UTF-8')
+            id = uuid.UUID(bytes=request.pop(0))
             key = request.pop(0).decode('UTF-8')
             peer = self.peers[id]
             if not peer:

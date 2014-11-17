@@ -80,8 +80,8 @@ class Pyre(object):
         logging.debug("set_interface not implemented")
 
     def set_endpoint(endpoint):
-        self.send_unicode("SET ENDPOINT", zmq.SNDMORE)
-        self.send_unicode(endpoint)
+        self.actor.send_unicode("SET ENDPOINT", zmq.SNDMORE)
+        self.actor.send_unicode(endpoint)
 
     # TODO: We haven't implemented gossiping yet
     def start(self):
@@ -141,29 +141,39 @@ class Pyre(object):
     #  Return list of current peers. The caller owns this list and should
     #  destroy it when finished with it.
     def get_peers(self):
-        self.send("PEERS")
+        self.actor.send_unicode("PEERS")
         peers = self.recv()
         return peers
 
-    #  --------------------------------------------------------------------------
-    #  Return the value of a header of a conected peer. 
-    #  Returns null if peer or key doesn't exits.
+    # --------------------------------------------------------------------------
+    # Return the endpoint of a connected peer. Caller owns the
+    # string.
     def get_peer_address(peer):
-        self.send("PEER ENDPOINT", zmq.SNDMORE)
-        self.send(peer)
+        self.actor.send_unicode("PEER ENDPOINT", zmq.SNDMORE)
+        self.actor.send(peer)
         adr = self.recv()
         return peers
 
     #  --------------------------------------------------------------------------
+    #  Return the value of a header of a conected peer. 
+    #  Returns null if peer or key doesn't exist.
+    def get_peer_header_value(self, peer, name):
+        self.actor.send_unicode("PEER HEADER", zmq.SNDMORE)
+        self.actor.send(peer.bytes, zmq.SNDMORE)
+        self.actor.send_unicode(name)
+        value = self.recv()
+        return value
+
+    #  --------------------------------------------------------------------------
     #  Return zlist of currently joined groups.
     def get_own_groups():
-        self.send("OWN GROUPS");
+        self.actor.send_unicode("OWN GROUPS");
         groups = self.recv()
 
     #  --------------------------------------------------------------------------
     #  Return zlist of groups known through connected peers. 
     def get_peer_groups():
-        self.send("PEER GROUPS")
+        self.actor.send_unicode("PEER GROUPS")
         groups = self.recv()
         return groups
 
@@ -173,7 +183,7 @@ class Pyre(object):
 
     # Set node header value
     def set_header(self, name, value, *args):
-        self.actor.send_unicode("SET", flags=zmq.SNDMORE)
+        self.actor.send_unicode("SET HEADER", flags=zmq.SNDMORE)
         self.actor.send_unicode(name, flags=zmq.SNDMORE)
         self.actor.send_unicode(value, flags=zmq.SNDMORE)
 
