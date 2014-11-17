@@ -160,6 +160,7 @@ class PyreNode(object):
         elif command == "STOP":
             # zsock_signal (self->pipe, zyre_node_stop (self));
             self.stop()
+            self._pipe.signal()
         elif command == "WHISPER":
             # Get peer to send message to
             peer_id = uuid.UUID(bytes=request.pop(0))

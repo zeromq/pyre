@@ -90,6 +90,8 @@ class Pyre(object):
 
     def stop(self):
         self.actor.send_unicode("STOP", flags=zmq.DONTWAIT)
+        # the backend will signal back
+        self.actor.resolve().wait()
         self.actor.destroy()
 
     # Receive next message from node
