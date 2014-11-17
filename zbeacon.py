@@ -26,6 +26,7 @@ import zmq
 import time
 import struct
 import ipaddress
+import sys
 from sys import platform
 import logging
 
@@ -56,7 +57,7 @@ class ZBeacon(object):
         self._hostname = self._pipe.recv_unicode()
 
     def __del__(self):
-        self._pipe.send_unicode("TERMINATE")
+        self._pipe.send_unicode("$TERM")
         # wait for confirmation
         msg = b''
 
@@ -71,7 +72,7 @@ class ZBeacon(object):
         self._pipe.send_unicode(interval)
 
     # Filter out any beacon that looks exactly like ours
-    def set_noecho(self):
+    def noecho(self):
         self._pipe.send_unicode("NOECHO")
 
     # Start broadcasting beacon to peers at the specified interval
@@ -131,30 +132,43 @@ class ZBeaconAgent(object):
         self._filter = self.transmit  # not used?
         # Our own address
         self.address = None
-        # Our announcement address
-        self.announce_addr = announce_addr
-        #byte announcement [2] = (port_nbr >> 8) & 0xFF, port_nbr & 0xFF
+        # Our network address
+        self.network_address = None
+        # Our broadcast address
+        self.broadcast_address = None
+        # Our interface name
+        self.interface_name = None
+        # ipaddress module wants unicode strings which is default in py3
+        if (sys.version_info.major < 3):
+            announce_addr = announce_addr.decode('utf-8')
+        self.announce_address = ipaddress.IPv4Address(announce_addr)
+        # find a non local ipaddress 
+        # TODO: only choose highest available ipaddress
+        netinf = zhelper.get_ifaddrs()
+        for iface in netinf:
+            # ipv4 only currently and needs a valid broadcast address
+            for name, data in iface.items():
+                if data.get(2) and data[2].get('broadcast'):
+                    ipadr = ipaddress.IPv4Address(data[2].get('addr'))
+                    if not ipadr.is_loopback:
+                        netmask = data[2].get('netmask')
+                        ifc = ipaddress.ip_interface("%s/%s" %(ipadr, netmask))
+                        self.address = ipadr
+                        self.network_address = ifc.network.network_address
+                        self.broadcast_address = ifc.network.broadcast_address
+                        self.interface_name = iface
+                        assert(data[2].get('broadcast') == str(self.broadcast_address))
+                        break
+            if self.address:
+                break
+
         self._init_socket()
-        # Send our hostname back to AP
-        # TODO This results in just the ip address and not sure if this is needed
-        self.address = socket.gethostbyname(socket.gethostname())
-        # fix for wrong ipaddress of host
-        if self.address.startswith('127'):
-            # find highest available ipaddress
-            netinf = zhelper.get_ifaddrs()
-            for iface in netinf:
-                # ipv4 only currently
-                for family in netinf[iface]:
-                    if family == 2:
-                        ipadr = ipaddress.IPv4Address(netinf[iface][family]['addr'])
-                        if ipadr > ipaddress.IPv4Address(self.address):
-                            self.address = netinf[iface][family]['addr']
-        self._pipe.send_unicode(self.address)
+        self._pipe.send_unicode(str(self.address))
         self.run()
 
     def _init_socket(self):
         try:
-            if ipaddress.IPv4Address(self.announce_addr).is_multicast:
+            if self.announce_address.is_multicast:
                 # TTL
                 self._udp_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
@@ -182,7 +196,7 @@ class ZBeaconAgent(object):
                 # self._udp_sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP,
                 #       socket.inet_aton("225.25.25.25") + socket.inet_aton(host))
 
-                group = socket.inet_aton(self.announce_addr)
+                group = socket.inet_aton("{0}".format(self.announce_address))
                 mreq = struct.pack('4sL', group, socket.INADDR_ANY)
 
                 self._udp_sock.setsockopt(socket.SOL_IP,
@@ -199,12 +213,10 @@ class ZBeaconAgent(object):
                 except AttributeError:
                     pass
 
-                self._udp_sock.bind((self.announce_addr, self._port))
+                self._udp_sock.bind((str(self.address), self._port))
 
             else:
                 # Only for broadcast
-                logger.debug("Setting up a broadcast beacon on {0}:{1}".format(self.announce_addr, self._port))
-
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
                 self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -216,11 +228,24 @@ class ZBeaconAgent(object):
                 except AttributeError:
                     pass
 
-                if platform.startswith("win") or  platform.startswith("darwin"):
-                    self._udp_sock.bind(("0.0.0.0", self._port))
+                # Platform specifics
+                if platform.startswith("win"):
+                    self.announce_address = self.broadcast_address
+                    self._udp_sock.bind(("", self._port))
+
+                # Not sure if freebsd should be included
+                elif platform.startswith("darwin") or platform.startswith("freebsd"):
+                    self.announce_address = self.broadcast_address
+                    self._udp_sock.bind(("", self._port))
 
                 else:
-                    self._udp_sock.bind((self.announce_addr, self._port))
+                    # on linux we bind to the broadcast address and send to
+                    # the broadcast address
+                    self.announce_address = self.broadcast_address
+                    self._udp_sock.bind((str(self.broadcast_address), self._port))
+
+                logger.debug("Set up a broadcast beacon to {0}:{1}".format(self.announce_address, self._port))
+
 
         except socket.error:
             logger.exception("Initializing of {0} raised an exception".format(self.__class__.__name__))
@@ -240,7 +265,7 @@ class ZBeaconAgent(object):
     def api_command(self):
         cmds = self._pipe.recv_multipart()
 
-        logger.debug("ZBeaconApiCommand: {0}".format(cmds))
+        #logger.debug("ZBeaconApiCommand: {0}".format(cmds))
 
         cmd = cmds.pop(0)
         cmd = cmd.decode('UTF-8')
@@ -264,7 +289,7 @@ class ZBeaconAgent(object):
         elif cmd == "UNSUBSCRIBE":
             self.filter = None
 
-        elif cmd == "TERMINATE":
+        elif cmd == "$TERM":
             self._terminated = True
             self._pipe.send_unicode("OK")
 
@@ -273,14 +298,14 @@ class ZBeaconAgent(object):
 
     def send(self):
         try:
-            self._udp_sock.sendto(self.transmit, (self.announce_addr, self._port))
+            self._udp_sock.sendto(self.transmit, (str(self.announce_address), self._port))
 
         except OSError:
             logger.debug("Network seems gone, reinitialising the socket")
 
             self._init_socket()
             # if failed after reinit an exception will be raised
-            self._udp_sock.sendto(self.transmit, (self.announce_addr, self._port))
+            self._udp_sock.sendto(self.transmit, (str(self.announce_address), self._port))
 
     def recv(self):
         try:

@@ -1,7 +1,7 @@
 Pyre
 ====
 
-This is a Python port of [Zyre](zyre.org) 1.0, implementing the same [ZRE protocol](http://rfc.zeromq.org/spec:20).
+This is a Python port of [Zyre](zyre.org) 1.0, implementing the same [ZRE protocol](http://rfc.zeromq.org/spec:36).
 
 # Pyre - an open-source framework for proximity-based peer-to-peer applications
 
@@ -15,7 +15,7 @@ All incoming events are messages delivered via the recv call of a Pyre
 instance. The first frame defines the type of the message, and following
 frames provide further values:
 
-    ENTER from node headers
+    ENTER fromnode headers
         a new peer has entered the network
     EXIT fromnode
         a peer has left the network
@@ -29,8 +29,7 @@ frames provide further values:
         a peer has sent one of our groups a message
 
 In SHOUT and WHISPER the message is a single frame in this version
-of Zyre. In ENTER, the headers frame contains a packed dictionary,
-see zhash_pack/unpack.
+of Pyre. In ENTER, the headers frame contains a packed dictionary.
 
 To join or leave a group, use the join() and leave() methods.
 To set a header value, use the set_header() method. To send a message
@@ -93,6 +92,8 @@ For now use Pip:
         
     #  Return handle to the Zyre node, for polling
     node.get_socket()
+    # use node.get_socket().getsockopt(zmq.FD) to acquire 
+    # the filedescriptor
 
 
 ## Example Chat Client
@@ -162,6 +163,35 @@ For now use Pip:
 
         print("FINISHED")
 ```
+
+Look at the [ZOCP](https://github.com/z25/pyZOCP) project for examples of how Pyre can be 
+integrated into different environments and frameworks, i.e.:
+- [Urwid](https://github.com/z25/pyZOCP/blob/master/examples/urwZOCP.py)
+- [Blender](https://github.com/z25/pyZOCP/blob/master/examples/BpyZOCP.py)
+- Glib
+- QT
+
+
+Pyre uses the [Python Logging](https://docs.python.org/3.4/library/logging.html) module.
+To change the debug level:
+
+```
+    # Create a StreamHandler for debugging
+    logger = logging.getLogger("pyre")
+    logger.setLevel(logging.INFO)
+    # i.e. logging.DEBUG, logging.WARNING
+    logger.addHandler(logging.StreamHandler())
+    logger.propagate = False
+
+```
+
+## Requirements
+
+Python only needs the libzmq. On some older versions of Python 
+it also needs the [ipaddress](https://docs.python.org/3.4/library/ipaddress.html?highlight=ipaddress#module-ipaddress) module.
+
+The recommended Python version is 3.3+
+
 
 ## Project Organization
 

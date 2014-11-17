@@ -5,12 +5,18 @@ logger = logging.getLogger(__name__)
 
 class PyreGroup(object):
 
-    def __init__(self, name, peers=dict()):
+    def __init__(self, name, peers={}):
         self.name = name
         # TODO perhaps warn if peers is not a set type
         self.peers = peers
 
     #def __del__(self):
+
+    def __repr__(self):
+        ret = "GROUPNAME={0}:\n".format(self.name)
+        for key, val in self.peers.items():
+            ret += "\t{0} {1}\n".format(key, val.name)
+        return ret
 
     # Add peer to group
     def join(self, peer):

@@ -9,9 +9,9 @@ import sys
 # local modules
 from . import zbeacon
 from . import zhelper
-from .zre_msg import ZreMsg
-from .pyre_peer import PyrePeer
-from .pyre_group import PyreGroup
+from .zactor import ZActor
+from .zsocket import ZSocket
+from .pyre_node import PyreNode
 
 BEACON_VERSION = 1
 ZRE_DISCOVERY_PORT = 5670
@@ -24,385 +24,160 @@ class Pyre(object):
 
     def __init__(self, ctx=zmq.Context()):
         self._ctx = ctx
+        self.uuid = None
+        self.name = None
         self.verbose = False
-        self._pipe = zhelper.zthread_fork(self._ctx, PyreNode)
+        self._inbox, self._outbox = zhelper.zcreate_pipe(self._ctx)
+
+        # Start node engine and wait for it to be ready
+        self.actor = ZActor(self._ctx, PyreNode, self._outbox)
+        # Send name, if any, to node ending  
+        if (self.name):
+            self.actor.send_unicode("SET NAME", zmq.SNDMORE)
+            self.actor.send_unicode(self.name)
+
+    #def __del__(self):
+        # We need to explicitly destroy the actor 
+        # to make sure our node thread is stopped
+        #self.actor.destroy()
+
+    # Return our node UUID, after successful initialization
+    def get_uuid(self):
+        if not self.uuid:
+            self.actor.send_unicode("UUID")
+            self.uuid = uuid.UUID(bytes=self.actor.recv())
+        return self.uuid
+
+    # Return our node name, after successful initialization
+    def get_name(self):
+        if not self.name:
+            self.actor.send_unicode("NAME")
+            self.name = self.actor.recv().decode('utf-8')
+        return self.name
+
+    def set_name(self, name):
+        self.actor.send_unicode("SET NAME", zmq.SNDMORE)
+        self.actor.send_unicode(name)
+
+    # Set node header value
+    def set_header(self, key, value):
+        self.actor.send_unicode("SET HEADER", flags=zmq.SNDMORE)
+        self.actor.send_unicode(key, flags=zmq.SNDMORE)
+        self.actor.send_unicode(value)
+
+    def set_verbose(self):
+        self.actor.send_unicode("SET VERBOSE")
+
+    def set_port(self, port):
+        self.actor.send_unicode("SET PORT", zmq.SNDMORE)
+        self.actor.send(port)
+
+    def set_interval(self, interval):
+        self.actor.send_unicode("SET INTERVAL", zmq.SNDMORE)
+        self.actor.send_unicode(interval)
+
+    def set_interface(iface):
+        logging.debug("set_interface not implemented")
+
+    def set_endpoint(endpoint):
+        self.send_unicode("SET ENDPOINT", zmq.SNDMORE)
+        self.send_unicode(endpoint)
+
+    # TODO: We haven't implemented gossiping yet
+    def start(self):
+        self.actor.send_unicode("START")
+        # TODO wait signal
 
     def stop(self):
-        self._pipe.send_unicode("STOP", flags=zmq.DONTWAIT)
+        self.actor.send_unicode("STOP", flags=zmq.DONTWAIT)
+        # the backend will signal back
+        self.actor.resolve().wait()
+        self.actor.destroy()
 
     # Receive next message from node
     def recv(self):
-        return self._pipe.recv()
-
-    # Set node tracing on or off
-    def set_verbose(self, verbose=True):
-        self.verbose = verbose
+        return self.actor.recv_multipart()
 
     # Join a group
     def join(self, group):
-        self._pipe.send_unicode("JOIN", flags=zmq.SNDMORE)
-        self._pipe.send_unicode(group)
+        self.actor.send_unicode("JOIN", flags=zmq.SNDMORE)
+        self.actor.send_unicode(group)
 
     # Leave a group
     def leave(self, group):
-        self._pipe.send_unicode("LEAVE", flags=zmq.SNDMORE)
-        self._pipe.send_unicode(group)
+        self.actor.send_unicode("LEAVE", flags=zmq.SNDMORE)
+        self.actor.send_unicode(group)
 
     # Send message to single peer; peer ID is first frame in message
     def whisper(self, peer, msg):
-        self._pipe.send_unicode("WHISPER", flags=zmq.SNDMORE)
-        self._pipe.send(peer.bytes, flags=zmq.SNDMORE)
+        self.actor.send_unicode("WHISPER", flags=zmq.SNDMORE)
+        self.actor.send(peer.bytes, flags=zmq.SNDMORE)
         if isinstance(msg, list):
-            self._pipe.send_multipart(msg)
+            self.actor.send_multipart(msg)
         else:
-            self._pipe.send(msg)
+            self.actor.send(msg)
 
     # Send message to a group of peers
     def shout(self, group, msg):
-        self._pipe.send_unicode("SHOUT", flags=zmq.SNDMORE)
-        self._pipe.send_unicode(group, flags=zmq.SNDMORE)
+        self.actor.send_unicode("SHOUT", flags=zmq.SNDMORE)
+        self.actor.send_unicode(group, flags=zmq.SNDMORE)
         if isinstance(msg, list):
-            self._pipe.send_multipart(msg)
+            self.actor.send_multipart(msg)
         else:
-            self._pipe.send(msg)
+            self.actor.send(msg)
 
-    # Return node socket, for polling
+    # Send message to single peer; peer ID is first frame in message
+    def whispers(self, peer, msg):
+        self.actor.send_unicode("WHISPER", flags=zmq.SNDMORE)
+        self.actor.send(peer.bytes, flags=zmq.SNDMORE)
+        self.actor.send_unicode(msg)
+
+    def shouts(self, group, msg):
+        self.actor.send_unicode("SHOUT", flags=zmq.SNDMORE)
+        self.actor.send_unicode(group, flags=zmq.SNDMORE)
+        self.actor.send_unicode(msg)
+
+    #  --------------------------------------------------------------------------
+    #  Return list of current peers. The caller owns this list and should
+    #  destroy it when finished with it.
+    def get_peers(self):
+        self.send("PEERS")
+        peers = self.recv()
+        return peers
+
+    #  --------------------------------------------------------------------------
+    #  Return the value of a header of a conected peer. 
+    #  Returns null if peer or key doesn't exits.
+    def get_peer_address(peer):
+        self.send("PEER ENDPOINT", zmq.SNDMORE)
+        self.send(peer)
+        adr = self.recv()
+        return peers
+
+    #  --------------------------------------------------------------------------
+    #  Return zlist of currently joined groups.
+    def get_own_groups():
+        self.send("OWN GROUPS");
+        groups = self.recv()
+
+    #  --------------------------------------------------------------------------
+    #  Return zlist of groups known through connected peers. 
+    def get_peer_groups():
+        self.send("PEER GROUPS")
+        groups = self.recv()
+        return groups
+
+    # Return node socket, for direct polling of socket
     def get_socket(self):
-        return self._pipe
+        return self.actor.resolve()
 
     # Set node header value
     def set_header(self, name, value, *args):
-        self._pipe.send_unicode("SET", flags=zmq.SNDMORE)
-        self._pipe.send_unicode(name, flags=zmq.SNDMORE)
-        self._pipe.send_unicode(value, flags=zmq.SNDMORE)
+        self.actor.send_unicode("SET", flags=zmq.SNDMORE)
+        self.actor.send_unicode(name, flags=zmq.SNDMORE)
+        self.actor.send_unicode(value, flags=zmq.SNDMORE)
 
-
-class PyreNode(object):
-
-    def __init__(self, ctx, pipe):
-        self._ctx = ctx
-        self._pipe = pipe
-        self._terminated = False
-        self.inbox = ctx.socket(zmq.ROUTER)
-        self.port = self.inbox.bind_to_random_port("tcp://*")
-        self.status = 0
-
-        if self.port < 0:
-            logging.critical("Random port assignment for incomming messages failed. Exiting.")
-            sys.exit(-1)
-
-        self.poller = zmq.Poller()
-        self.identity = uuid.uuid4()
-
-        # Workaround for https://github.com/zeromq/zyre/commit/be684a14ec3198dea043749bf36e59962f7e5073
-        while self.identity.bytes[0] == 0:
-            self.identity = uuid.uuid4()
-
-        logger.debug("Node identity: {0}".format(self.identity))
-
-        self.beacon = zbeacon.ZBeacon(self._ctx, ZRE_DISCOVERY_PORT)
-        # TODO: how do we set the header of the beacon?
-        # line 299 zbeacon.c
-        self.beacon.set_noecho()
-        # construct a header
-        transmit = struct.pack('cccb16sH', b'Z', b'R', b'E',
-                               BEACON_VERSION, self.identity.bytes,
-                               socket.htons(self.port))
-
-        self.beacon.publish(transmit)
-        # construct the header filter
-        # (to discard none zre messages)
-        filter = struct.pack("ccc", b'Z', b'R', b'E')
-        self.beacon.subscribe(filter)
-
-        self.host = self.beacon.get_hostname()
-        self.peers = {}
-        self.peer_groups = {}
-        self.own_groups = {}
-        # TODO what is this used for?
-        self.headers = {}
-        self.run()
-
-    # def __del__(self):
-        # destroy beacon
-
-    def stop(self):
-        stop_transmit = struct.pack('cccb16sH', b'Z', b'R', b'E',
-                               BEACON_VERSION, self.identity.bytes,
-                               socket.htons(0))
-
-        self.beacon.publish(stop_transmit)
-        # Give time for beacon to go out
-        time.sleep(0.001)
-
-    # Send message to all peers
-    def send_peer(self, peer, msg):
-        peer.send(msg)
-
-    def purge_peer(self, peer, endpoint):
-        if (peer.get_endpoint() == endpoint):
-            peer.disconnect()
-
-    def remove_peer(self, peer):
-        # TODO: we might want to first check if we even know the peer?
-        self._pipe.send_unicode("EXIT", flags=zmq.SNDMORE)
-        self._pipe.send(peer.get_identity().bytes)
-        # If peer has really vanished, expire it (delete)
-        for grp in self.peer_groups.values():
-            self.delete_peer(peer, grp)
-        self.peers.pop(peer.get_identity())
-
-    # Find or create peer via its UUID string
-    def require_peer(self, identity, ipaddr, port):
-        #  Purge any previous peer on same endpoint
-        p = self.peers.get(identity)
-        if not p:
-            # Purge any previous peer on same endpoint
-            endpoint = "{0}:{1}".format(ipaddr, port)
-
-            for peer_id, peer in self.peers.copy().items():
-                self.purge_peer(peer, endpoint)
-
-            p = PyrePeer(self._ctx, identity)
-            self.peers[identity] = p
-            #print("Require_peer: %s" %identity)
-
-            p.connect(self.identity, endpoint)
-            m = ZreMsg(ZreMsg.HELLO)
-            m.set_ipaddress(self.host)
-            m.set_mailbox(self.port)
-            m.set_groups(self.own_groups.keys())
-            m.set_status(self.status)
-            p.send(m)
-
-            # Now tell the caller about the peer
-            self._pipe.send_unicode("ENTER", flags=zmq.SNDMORE)
-            self._pipe.send(identity.bytes)
-        return p
-
-    # Find or create group via its name
-    def require_peer_group(self, groupname):
-        grp = self.peer_groups.get(groupname)
-        if not grp:
-            grp = PyreGroup(groupname)
-            self.peer_groups[groupname] = grp
-        return grp
-
-    def join_peer_group(self, peer, name):
-        grp = self.require_peer_group(name)
-        grp.join(peer)
-        # Now tell the caller about the peer joined group
-        self._pipe.send_unicode("JOIN", flags=zmq.SNDMORE)
-        self._pipe.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
-        self._pipe.send_unicode(name)
-        return grp
-
-    def leave_peer_group(self, peer, name):
-        grp = self.require_peer_group(name)
-        grp.leave(peer)
-        self._pipe.send_unicode("LEAVE", flags=zmq.SNDMORE)
-        self._pipe.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
-        self._pipe.send_unicode(name)
-        return grp
-
-    # Here we handle the different control messages from the front-end
-    def recv_api(self):
-        cmds = self._pipe.recv_multipart()
-        command = cmds.pop(0).decode('UTF-8')
-        if command == "WHISPER":
-            # Get peer to send message to
-            peer = uuid.UUID(bytes=cmds.pop(0))
-            # Send frame on out to peer's mailbox, drop message
-            # if peer doesn't exist (may have been destroyed)
-            if self.peers.get(peer):
-                msg = ZreMsg(ZreMsg.WHISPER)
-                msg.set_address(peer)
-                msg.content = cmds
-                self.peers[peer].send(msg)
-        elif command == "SHOUT":
-            # Get group to send message to
-            grpname = cmds.pop(0).decode('UTF-8')
-            msg = ZreMsg(ZreMsg.SHOUT)
-            msg.set_group(grpname)
-            msg.content = cmds.pop(0)
-
-            if self.peer_groups.get(grpname):
-                self.peer_groups[grpname].send(msg)
-
-            else:
-                logger.warning("Group {0} not found.".format(grpname))
-
-        elif command == "JOIN":
-            grpname = cmds.pop(0).decode('UTF-8')
-            grp = self.own_groups.get(grpname)
-            if not grp:
-                # Only send if we're not already in group
-                grp = PyreGroup(grpname)
-                self.own_groups[grpname] = grp
-                msg = ZreMsg(ZreMsg.JOIN)
-                msg.set_group(grpname)
-                self.status += 1
-                msg.set_status(self.status)
-
-                for peer in self.peers.values():
-                    peer.send(msg)
-
-                logger.debug("Node is joining group {0}".format(grpname))
-
-        elif command == "LEAVE":
-            grpname = cmds.pop(0).decode('UTF-8')
-            grp = self.own_groups.get(grpname)
-            if grp:
-                # Only send if we're actually in group
-                msg = ZreMsg(ZreMsg.LEAVE)
-                msg.set_group(grpname)
-                self.status += 1
-                msg.set_status(self.status)
-
-                for peer in self.peers.values():
-                    peer.send(msg)
-
-                self.own_groups.pop(grpname)
-
-                logger.debug("Node is leaving group {0}".format(grpname))
-
-        elif command == "STOP":
-            self.stop()
-            try:
-                self._pipe.send_unicode("OK", zmq.DONTWAIT)
-            except zmq.error.Again:
-                # other end of the pipe is already gone
-                pass
-            self._terminated = True
-
-        else:
-            logger.warning("Unkown Node API command: {0}".format(command))
-
-    # Here we handle messages coming from other peers
-    def recv_peer(self):
-        zmsg = ZreMsg()
-        zmsg.recv(self.inbox)
-        #msgs = self.inbox.recv_multipart()
-        # Router socket tells us the identity of this peer
-        id = zmsg.get_address()
-        # On HELLO we may create the peer if it's unknown
-        # On other commands the peer must already exist
-        p = self.peers.get(id)
-        #print(p, id)
-        if zmsg.id == ZreMsg.HELLO:
-            p = self.require_peer(id, zmsg.get_ipaddress(), zmsg.get_mailbox())
-            p.set_ready(True)
-            #print("Hallo %s"%p)
-
-        # Ignore command if peer isn't ready
-        if not p or not p.get_ready():
-            logger.warning("Peer {0} isn't ready".format(p))
-            return
-
-        if not p.check_message(zmsg):
-            logger.warning("{0} lost messages from {1}".format(self.identity, p.identity))
-
-        if zmsg.id == ZreMsg.HELLO:
-            # Join peer to listed groups
-            for grp in zmsg.get_groups():
-                self.join_peer_group(p, grp)
-            # Hello command holds latest status of peer
-            p.set_status(zmsg.get_status())
-            # Store peer headers for future reference
-            p.set_headers(zmsg.get_headers())
-        elif zmsg.id == ZreMsg.WHISPER:
-            # Pass up to caller API as WHISPER event
-            self._pipe.send_unicode("WHISPER", zmq.SNDMORE)
-            self._pipe.send(p.get_identity().bytes, zmq.SNDMORE)
-            self._pipe.send(zmsg.content)
-        elif zmsg.id == ZreMsg.SHOUT:
-            # Pass up to caller API as WHISPER event
-            self._pipe.send_unicode("SHOUT", zmq.SNDMORE)
-            self._pipe.send(p.get_identity().bytes, zmq.SNDMORE)
-            self._pipe.send_unicode(zmsg.get_group(), zmq.SNDMORE)
-            self._pipe.send(zmsg.content)
-        elif zmsg.id == ZreMsg.PING:
-            p.send(ZreMsg(id=ZreMsg.PING_OK))
-        elif zmsg.id == ZreMsg.JOIN:
-            self.join_peer_group(p, zmsg.get_group())
-            #assert (zre_msg_status (msg) == zre_peer_status (peer))
-        elif zmsg.id == ZreMsg.LEAVE:
-            self.leave_peer_group(p, zmsg.get_group())
-        p.refresh()
-
-    def recv_beacon(self):
-        msgs = self.beacon.get_socket().recv_multipart()
-        ipaddress = msgs.pop(0)
-        frame = msgs.pop(0)
-        beacon = struct.unpack('cccb16sH', frame)
-        # Ignore anything that isn't a valid beacon
-
-        if beacon[3] != BEACON_VERSION:
-            logger.warning("Invalid ZRE Beacon version: {0}".format(beacon[3]))
-            return
-
-        peer_id = uuid.UUID(bytes=beacon[4])
-        #print("peerId: %s", peer_id)
-        port = socket.ntohs(beacon[5])
-        # if we receive a beacon with port 0 this means the peer exited
-        if port == 0:
-            peer = self.peers.get(peer_id)
-            # remove the peer (delete)
-            if peer:
-                self.remove_peer(peer)
-
-            else:
-                logger.warning("We don't know peer id {0}".format(peer_id))
-
-        else:
-            peer = self.require_peer(peer_id, ipaddress.decode('UTF-8'), port)
-            peer.refresh()
-
-    #  Remove peer from group, if it's a member
-    def delete_peer(self, peer, group):
-        group.leave(peer)
-
-    def ping_peer(self, peer_id):
-        p = self.peers.get(peer_id)
-        if time.time() > p.expired_at:
-            self.remove_peer(p)
-        elif time.time() > p.evasive_at:
-            # If peer is being evasive, force a TCP ping.
-            # TODO: do this only once for a peer in this state;
-            # it would be nicer to use a proper state machine
-            # for peer management.
-            msg = ZreMsg(ZreMsg.PING)
-            p.send(msg)
-
-    def run(self):
-        self.poller.register(self._pipe, zmq.POLLIN)
-        self.poller.register(self.inbox, zmq.POLLIN)
-        self.poller.register(self.beacon.get_socket(), zmq.POLLIN)
-
-        reap_at = time.time() + REAP_INTERVAL
-        while(True):
-            timeout = reap_at - time.time()
-            if timeout < 0:
-                timeout = 0
-
-            items = dict(self.poller.poll(timeout * 1000))
-
-            if self._pipe in items and items[self._pipe] == zmq.POLLIN:
-                self.recv_api()
-                #print("PIPED:")
-            if self.inbox in items and items[self.inbox] == zmq.POLLIN:
-                self.recv_peer()
-                #print("NODE?:")
-            if self.beacon.get_socket() in items and items[self.beacon.get_socket()] == zmq.POLLIN:
-                self.recv_beacon()
-            if time.time() >= reap_at:
-                reap_at = time.time() + REAP_INTERVAL
-                # Ping all peers and reap any expired ones
-                for peer_id in self.peers.copy().keys():
-                    self.ping_peer(peer_id)
-            if self._terminated:
-                break
-
+# TODO: make a unittest or selftest
 
 def chat_task(ctx, pipe):
     n = Pyre(ctx)

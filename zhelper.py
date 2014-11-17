@@ -1,7 +1,35 @@
+import random
 import zmq
 import threading
 import binascii
 import os
+from . import zsocket
+
+# --------------------------------------------------------------------------
+# Create a pipe, which consists of two PAIR sockets connected over inproc.
+# The pipe is configured to use a default 1000 hwm setting. Returns the
+# frontend and backend sockets.
+def zcreate_pipe(ctx, hwm=1000):
+    backend = zsocket.ZSocket(ctx, zmq.PAIR)
+    frontend = zsocket.ZSocket(ctx, zmq.PAIR)
+    backend.set_hwm(hwm)
+    frontend.set_hwm(hwm)
+    # close immediately on shutdown
+    backend.setsockopt(zmq.LINGER, 0)
+    frontend.setsockopt(zmq.LINGER, 0)
+
+    endpoint = "inproc://zactor-%04x-%04x\n"\
+                 %(random.randint(0, 0x10000), random.randint(0, 0x10000))
+    while True:
+        try:
+            frontend.bind(endpoint)
+        except:
+            endpoint = "inproc://zactor-%04x-%04x\n"\
+                 %(random.randint(0, 0x10000), random.randint(0, 0x10000))
+        else:
+            break
+    backend.connect(endpoint)
+    return (frontend, backend)
 
 
 def zthread_fork(ctx, func, *args, **kwargs):
@@ -11,23 +39,23 @@ def zthread_fork(ctx, func, *args, **kwargs):
     pipe becomes unreadable. Returns pipe, or NULL if there was an error.
     """
     a = ctx.socket(zmq.PAIR)
-    a.set(zmq.LINGER, 0)
-    a.set(zmq.RCVHWM, 100)
-    a.set(zmq.SNDHWM, 100)
-    a.set(zmq.SNDTIMEO, 5000)
-    a.set(zmq.RCVTIMEO, 5000)
+    a.setsockopt(zmq.LINGER, 0)
+    a.setsockopt(zmq.RCVHWM, 100)
+    a.setsockopt(zmq.SNDHWM, 100)
+    a.setsockopt(zmq.SNDTIMEO, 5000)
+    a.setsockopt(zmq.RCVTIMEO, 5000)
     b = ctx.socket(zmq.PAIR)
-    b.set(zmq.LINGER, 0)
-    b.set(zmq.RCVHWM, 100)
-    b.set(zmq.SNDHWM, 100)
-    b.set(zmq.SNDTIMEO, 5000)
-    a.set(zmq.RCVTIMEO, 5000)
+    b.setsockopt(zmq.LINGER, 0)
+    b.setsockopt(zmq.RCVHWM, 100)
+    b.setsockopt(zmq.SNDHWM, 100)
+    b.setsockopt(zmq.SNDTIMEO, 5000)
+    a.setsockopt(zmq.RCVTIMEO, 5000)
     iface = "inproc://%s" % binascii.hexlify(os.urandom(8))
     a.bind(iface)
     b.connect(iface)
 
     thread = threading.Thread(target=func, args=((ctx, b) + args), kwargs=kwargs)
-    #thread.daemon = True
+    thread.daemon = False
     thread.start()
 
     return a
@@ -71,6 +99,9 @@ def get_ifaddrs():
     Found this at http://pastebin.com/wxjai3Mw with some modification to
     make it work on OSX.
     """
+    if platform.startswith("win"):
+        return get_win_ifaddrs()
+
     # getifaddr structs
     class ifa_ifu_u(Union):
         _fields_ = [
@@ -201,7 +232,7 @@ def get_ifaddrs():
     if result:
         return None
     ifa = ifaddrs.from_address(ptr.value)
-    result = {}
+    result = []
 
     while ifa:
         # Python 2 gives us a string, Python 3 an array of bytes
@@ -209,9 +240,6 @@ def get_ifaddrs():
             name = ifa.ifa_name
         else:
             name = ifa.ifa_name.decode()
-
-        if name not in result:
-            result[name] = {}
 
         if ifa.ifa_addr:
             sa = sockaddr.from_address(ifa.ifa_addr)
@@ -229,6 +257,12 @@ def get_ifaddrs():
             if ifa.ifa_netmask is not None:
                 si = sockaddr_in.from_address(ifa.ifa_netmask)
                 data['netmask'] = inet_ntop(AF_INET, si.sin_addr)
+
+            # check if a valid broadcast address is set and retrieve it
+            # 0x2 == IFF_BROADCAST
+            if ifa.ifa_flags & 0x2:
+                si = sockaddr_in.from_address(ifa.ifa_ifu.ifu_broadaddr)
+                data['broadcast'] = inet_ntop(AF_INET, si.sin_addr)
 
         if sa.sa_family == AF_INET6:
             if ifa.ifa_addr is not None:
@@ -266,9 +300,16 @@ def get_ifaddrs():
                 data['addr'] = addr
 
         if len(data) > 0:
-            if sa.sa_family not in result[name]:
-                result[name][sa.sa_family] = {}
-            result[name][sa.sa_family].update(data)
+            iface = {}
+            for interface in result:
+                if name in interface.keys():
+                    iface = interface
+                    break
+            if iface:
+                iface[name][sa.sa_family] = data
+            else:
+                iface[name] = { sa.sa_family : data }
+                result.append(iface)
 
         if ifa.ifa_next:
             ifa = ifaddrs.from_address(ifa.ifa_next)
@@ -277,3 +318,209 @@ def get_ifaddrs():
 
     libc.freeifaddrs(ptr)
     return result
+
+def get_win_ifaddrs():
+    """
+    A method for retrieving info of the network
+    interfaces. Returns a nested dictionary of
+    interfaces in Windows. Cutrrently supports
+    only IPv4 interfaces
+    """
+    # based on code from jaraco and many other attempts
+    # on internet
+
+    import ctypes
+    import struct
+    import ipaddress
+    import ctypes.wintypes
+    from ctypes.wintypes import DWORD, WCHAR, BYTE, BOOL
+    from socket import AF_INET
+    
+    # from iptypes.h
+    MAX_ADAPTER_ADDRESS_LENGTH = 8
+    MAX_DHCPV6_DUID_LENGTH = 130
+
+    GAA_FLAG_INCLUDE_PREFIX = ctypes.c_ulong(0x0010)
+    
+    class SOCKADDR(ctypes.Structure):
+        _fields_ = [
+            ('family', ctypes.c_ushort),
+            ('data', ctypes.c_byte*14),
+            ]
+    LPSOCKADDR = ctypes.POINTER(SOCKADDR)
+
+    class SOCKET_ADDRESS(ctypes.Structure):
+        _fields_ = [
+            ('address', LPSOCKADDR),
+            ('length', ctypes.c_int),
+            ]
+
+    class _IP_ADAPTER_ADDRESSES_METRIC(ctypes.Structure):
+        _fields_ = [
+            ('length', ctypes.c_ulong),
+            ('interface_index', DWORD),
+            ]
+
+    class _IP_ADAPTER_ADDRESSES_U1(ctypes.Union):
+        _fields_ = [
+            ('alignment', ctypes.c_ulonglong),
+            ('metric', _IP_ADAPTER_ADDRESSES_METRIC),
+            ]
+
+    class IP_ADAPTER_UNICAST_ADDRESS(ctypes.Structure):
+        pass
+    PIP_ADAPTER_UNICAST_ADDRESS = ctypes.POINTER(IP_ADAPTER_UNICAST_ADDRESS)
+    IP_ADAPTER_UNICAST_ADDRESS._fields_ = [
+            ("length", ctypes.c_ulong),
+            ("flags", ctypes.wintypes.DWORD),
+            ("next", PIP_ADAPTER_UNICAST_ADDRESS),
+            ("address", SOCKET_ADDRESS),
+            ("prefix_origin", ctypes.c_int),
+            ("suffix_origin", ctypes.c_int),
+            ("dad_state", ctypes.c_int),
+            ("valid_lifetime", ctypes.c_ulong),
+            ("preferred_lifetime", ctypes.c_ulong),
+            ("lease_lifetime", ctypes.c_ulong),
+            ("on_link_prefix_length", ctypes.c_ubyte)
+            ]
+
+    # it crashes when retrieving prefix data :(
+    class IP_ADAPTER_PREFIX(ctypes.Structure):
+        pass
+    PIP_ADAPTER_PREFIX = ctypes.POINTER(IP_ADAPTER_PREFIX)
+    IP_ADAPTER_PREFIX._fields_ = [
+        ("alignment", ctypes.c_ulonglong),
+        ("next", PIP_ADAPTER_PREFIX),
+        ("address", SOCKET_ADDRESS),
+        ("prefix_length", ctypes.c_ulong)
+        ]
+
+    class IP_ADAPTER_ADDRESSES(ctypes.Structure):
+        pass
+    LP_IP_ADAPTER_ADDRESSES = ctypes.POINTER(IP_ADAPTER_ADDRESSES)
+    
+    # for now, just use void * for pointers to unused structures
+    PIP_ADAPTER_ANYCAST_ADDRESS = ctypes.c_void_p
+    PIP_ADAPTER_MULTICAST_ADDRESS = ctypes.c_void_p
+    PIP_ADAPTER_DNS_SERVER_ADDRESS = ctypes.c_void_p
+    #PIP_ADAPTER_PREFIX = ctypes.c_void_p
+    PIP_ADAPTER_WINS_SERVER_ADDRESS_LH = ctypes.c_void_p
+    PIP_ADAPTER_GATEWAY_ADDRESS_LH = ctypes.c_void_p
+    PIP_ADAPTER_DNS_SUFFIX = ctypes.c_void_p
+
+    IF_OPER_STATUS = ctypes.c_uint # this is an enum, consider http://code.activestate.com/recipes/576415/
+    IF_LUID = ctypes.c_uint64
+
+    NET_IF_COMPARTMENT_ID = ctypes.c_uint32
+    GUID = ctypes.c_byte*16
+    NET_IF_NETWORK_GUID = GUID
+    NET_IF_CONNECTION_TYPE = ctypes.c_uint # enum
+    TUNNEL_TYPE = ctypes.c_uint # enum
+
+    IP_ADAPTER_ADDRESSES._fields_ = [
+        #('u', _IP_ADAPTER_ADDRESSES_U1),
+            ('length', ctypes.c_ulong),
+            ('interface_index', DWORD),
+        ('next', LP_IP_ADAPTER_ADDRESSES),
+        ('adapter_name', ctypes.c_char_p),
+        ('first_unicast_address', PIP_ADAPTER_UNICAST_ADDRESS),
+        ('first_anycast_address', PIP_ADAPTER_ANYCAST_ADDRESS),
+        ('first_multicast_address', PIP_ADAPTER_MULTICAST_ADDRESS),
+        ('first_dns_server_address', PIP_ADAPTER_DNS_SERVER_ADDRESS),
+        ('dns_suffix', ctypes.c_wchar_p),
+        ('description', ctypes.c_wchar_p),
+        ('friendly_name', ctypes.c_wchar_p),
+        ('byte', BYTE*MAX_ADAPTER_ADDRESS_LENGTH),
+        ('physical_address_length', DWORD),
+        ('flags', DWORD),
+        ('mtu', DWORD),
+        ('interface_type', DWORD),
+        ('oper_status', IF_OPER_STATUS),
+        ('ipv6_interface_index', DWORD),
+        ('zone_indices', DWORD),
+        ('first_prefix', PIP_ADAPTER_PREFIX),
+        ('transmit_link_speed', ctypes.c_uint64),
+        ('receive_link_speed', ctypes.c_uint64),
+        ('first_wins_server_address', PIP_ADAPTER_WINS_SERVER_ADDRESS_LH),
+        ('first_gateway_address', PIP_ADAPTER_GATEWAY_ADDRESS_LH),
+        ('ipv4_metric', ctypes.c_ulong),
+        ('ipv6_metric', ctypes.c_ulong),
+        ('luid', IF_LUID),
+        ('dhcpv4_server', SOCKET_ADDRESS),
+        ('compartment_id', NET_IF_COMPARTMENT_ID),
+        ('network_guid', NET_IF_NETWORK_GUID),
+        ('connection_type', NET_IF_CONNECTION_TYPE),
+        ('tunnel_type', TUNNEL_TYPE),
+        ('dhcpv6_server', SOCKET_ADDRESS),
+        ('dhcpv6_client_duid', ctypes.c_byte*MAX_DHCPV6_DUID_LENGTH),
+        ('dhcpv6_client_duid_length', ctypes.c_ulong),
+        ('dhcpv6_iaid', ctypes.c_ulong),
+        ('first_dns_suffix', PIP_ADAPTER_DNS_SUFFIX),
+        ]
+
+    def GetAdaptersAddresses():
+        """
+        Returns an iteratable list of adapters
+        """ 
+        size = ctypes.c_ulong()
+        GetAdaptersAddresses = ctypes.windll.iphlpapi.GetAdaptersAddresses
+        GetAdaptersAddresses.argtypes = [
+            ctypes.c_ulong,
+            ctypes.c_ulong,
+            ctypes.c_void_p,
+            ctypes.POINTER(IP_ADAPTER_ADDRESSES),
+            ctypes.POINTER(ctypes.c_ulong),
+        ]
+        GetAdaptersAddresses.restype = ctypes.c_ulong
+        res = GetAdaptersAddresses(AF_INET,0,None, None,size)
+        if res != 0x6f: # BUFFER OVERFLOW
+            raise RuntimeError("Error getting structure length (%d)" % res)
+        pointer_type = ctypes.POINTER(IP_ADAPTER_ADDRESSES)
+        size.value = 15000
+        buffer = ctypes.create_string_buffer(size.value)
+        struct_p = ctypes.cast(buffer, pointer_type)
+        res = GetAdaptersAddresses(AF_INET,0,None, struct_p, size)
+        if res != 0x0: # NO_ERROR:
+            raise RuntimeError("Error retrieving table (%d)" % res)
+        while struct_p:
+            yield struct_p.contents
+            struct_p = struct_p.contents.next
+
+    result = []
+    for i in GetAdaptersAddresses():
+        #print("--------------------------------------")
+        #print("IF: {0}".format(i.description))
+        #print("\tdns_suffix: {0}".format(i.dns_suffix))
+        #print("\tinterface type: {0}".format(i.interface_type))
+        fu = i.first_unicast_address.contents
+        ad = fu.address.address.contents
+        #print("\tfamily: {0}".format(ad.family))
+        ip_int = struct.unpack('>2xI8x', ad.data)[0]
+        ip = ipaddress.IPv4Address(ip_int)
+        ip_if = ipaddress.IPv4Interface("{0}/{1}".format(ip,fu.on_link_prefix_length)) 
+        #print("\tipaddress: {0}".format(ip))
+        #print("\tnetmask: {0}".format(ip_if.netmask))
+        #print("\tnetwork: {0}".format(ip_if.network.network_address))
+        #print("\tbroadcast: {0}".format(ip_if.network.broadcast_address))
+        #print("\tmask length: {0}".format(fu.on_link_prefix_length))
+        data = {}
+        data['addr'] = "{0}".format(ip)
+        data['netmask'] = "{0}".format(ip_if.netmask)
+        data['broadcast'] = "{0}".format(ip_if.network.broadcast_address)
+        data['network'] = "{0}".format(ip_if.network.network_address)
+
+        name = i.description 
+        #result[i.description] = { ad.family : d}
+        iface = {}
+        for interface in result:
+            if name in interface.keys():
+                iface = interface
+                break
+        if iface:
+            iface[name][ad.family] = data
+        else:
+            iface[name] = { ad.family : data }
+            result.append(iface)
+
+    return result
+
