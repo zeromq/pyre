@@ -94,7 +94,8 @@ For now use Pip:
     node.get_socket()
     # use node.get_socket().getsockopt(zmq.FD) to acquire 
     # the filedescriptor
-
+    # Don't use this for getting Pyre events you can use the 
+    # node.inbox to get those events
 
 ## Example Chat Client
 
@@ -111,7 +112,7 @@ For now use Pip:
 
         poller = zmq.Poller()
         poller.register(pipe, zmq.POLLIN)
-        poller.register(n.get_socket(), zmq.POLLIN)
+        poller.register(n.inbox, zmq.POLLIN)
 
         while(True):
             items = dict(poller.poll())
@@ -127,8 +128,8 @@ For now use Pip:
 
                 n.shout("CHAT", message)
 
-            if n.get_socket() in items and items[n.get_socket()] == zmq.POLLIN:
-                cmds = n.get_socket().recv_multipart()
+            if n.inbox in items and items[n.inbox] == zmq.POLLIN:
+                cmds = n.recv()
                 type = cmds.pop(0)
 
                 peer_uuid_bytes = cmds.pop(0)
@@ -169,7 +170,7 @@ integrated into different environments and frameworks, i.e.:
 - [Urwid](https://github.com/z25/pyZOCP/blob/master/examples/urwZOCP.py)
 - [Blender](https://github.com/z25/pyZOCP/blob/master/examples/BpyZOCP.py)
 - Glib
-- QT
+- [QT](https://github.com/z25/pyZOCP/blob/master/examples/qt_ui_node.py)
 
 
 Pyre uses the [Python Logging](https://docs.python.org/3.4/library/logging.html) module.

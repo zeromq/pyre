@@ -11,7 +11,7 @@ def chat_task(ctx, pipe):
 
     poller = zmq.Poller()
     poller.register(pipe, zmq.POLLIN)
-    poller.register(n.get_socket(), zmq.POLLIN)
+    poller.register(n.inbox, zmq.POLLIN)
     while(True):
         items = dict(poller.poll())
         if pipe in items and items[pipe] == zmq.POLLIN:
@@ -21,8 +21,8 @@ def chat_task(ctx, pipe):
                 break
             print("CHAT_TASK: %s" % message)
             n.shout("CHAT", message)
-        if n.get_socket() in items and items[n.get_socket()] == zmq.POLLIN:
-            cmds = n.get_socket().recv_multipart()
+        if n.inbox in items and items[n.inbox] == zmq.POLLIN:
+            cmds = n.recv()
             type = cmds.pop(0)
             print("NODE_MSG TYPE: %s" % type)
             print("NODE_MSG PEER: %s" % uuid.UUID(bytes=cmds.pop(0)))
