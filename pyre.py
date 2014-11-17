@@ -27,11 +27,11 @@ class Pyre(object):
         self.uuid = None
         self.name = None
         self.verbose = False
-        self._inbox, self._outbox = zhelper.zcreate_pipe(self._ctx)
+        self.inbox, self._outbox = zhelper.zcreate_pipe(self._ctx)
 
         # Start node engine and wait for it to be ready
         self.actor = ZActor(self._ctx, PyreNode, self._outbox)
-        # Send name, if any, to node ending  
+        # Send name, if any, to node ending 
         if (self.name):
             self.actor.send_unicode("SET NAME", zmq.SNDMORE)
             self.actor.send_unicode(self.name)
@@ -96,7 +96,7 @@ class Pyre(object):
 
     # Receive next message from node
     def recv(self):
-        return self.actor.recv_multipart()
+        return self.inbox.recv_multipart()
 
     # Join a group
     def join(self, group):

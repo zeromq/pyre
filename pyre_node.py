@@ -288,9 +288,9 @@ class PyreNode(object):
     #  Remove a peer from our data structures
     def remove_peer(self, peer):
         # Tell the calling application the peer has gone
-        self._pipe.send_unicode("EXIT", zmq.SNDMORE)
-        self._pipe.send(peer.get_identity().bytes, zmq.SNDMORE)
-        self._pipe.send_unicode(peer.get_name())
+        self.outbox.send_unicode("EXIT", zmq.SNDMORE)
+        self.outbox.send(peer.get_identity().bytes, zmq.SNDMORE)
+        self.outbox.send_unicode(peer.get_name())
         logger.debug("({0}) EXIT name={1}".format(peer, peer.get_endpoint()))
         # Remove peer from any groups we've got it in
         for grp in self.peer_groups.values():
@@ -313,19 +313,19 @@ class PyreNode(object):
         grp = self.require_peer_group(groupname)
         grp.join(peer)
         # Now tell the caller about the peer joined group
-        self._pipe.send_unicode("JOIN", flags=zmq.SNDMORE)
-        self._pipe.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
-        self._pipe.send_unicode(peer.get_name(), flags=zmq.SNDMORE)
-        self._pipe.send_unicode(groupname)
+        self.outbox.send_unicode("JOIN", flags=zmq.SNDMORE)
+        self.outbox.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
+        self.outbox.send_unicode(peer.get_name(), flags=zmq.SNDMORE)
+        self.outbox.send_unicode(groupname)
         logger.debug("({0}) JOIN name={1} group={2}".format(self.name, peer.get_name(), groupname))
         return grp
 
     def leave_peer_group(self, peer, groupname):
         # Tell the caller about the peer joined group
-        self._pipe.send_unicode("LEAVE", flags=zmq.SNDMORE)
-        self._pipe.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
-        self._pipe.send_unicode(peer.get_name(), flags=zmq.SNDMORE)
-        self._pipe.send_unicode(groupname)
+        self.outbox.send_unicode("LEAVE", flags=zmq.SNDMORE)
+        self.outbox.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
+        self.outbox.send_unicode(peer.get_name(), flags=zmq.SNDMORE)
+        self.outbox.send_unicode(groupname)
         # Now remove the peer from the group
         grp = self.require_peer_group(groupname)
         grp.leave(peer)
@@ -371,11 +371,11 @@ class PyreNode(object):
             peer.set_headers(zmsg.get_headers())
 
             # Now tell the caller about the peer
-            self._pipe.send_unicode("ENTER", flags=zmq.SNDMORE)
-            self._pipe.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
-            self._pipe.send_unicode(peer.get_name(), flags=zmq.SNDMORE)
+            self.outbox.send_unicode("ENTER", flags=zmq.SNDMORE)
+            self.outbox.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
+            self.outbox.send_unicode(peer.get_name(), flags=zmq.SNDMORE)
             # TODO send headers???
-            self._pipe.send_unicode(peer.get_endpoint())
+            self.outbox.send_unicode(peer.get_endpoint())
             logger.debug("({0}) ENTER name={1} endpoint={2}".format(self.name, peer.get_name(), peer.get_endpoint()))
 
             # Join peer to listed groups
@@ -385,17 +385,17 @@ class PyreNode(object):
             peer.set_status(zmsg.get_status())
         elif zmsg.id == ZreMsg.WHISPER:
             # Pass up to caller API as WHISPER event
-            self._pipe.send_unicode("WHISPER", zmq.SNDMORE)
-            self._pipe.send(peer.get_identity().bytes, zmq.SNDMORE)
-            self._pipe.send_unicode(peer.get_name(), zmq.SNDMORE)
-            self._pipe.send(zmsg.content)
+            self.outbox.send_unicode("WHISPER", zmq.SNDMORE)
+            self.outbox.send(peer.get_identity().bytes, zmq.SNDMORE)
+            self.outbox.send_unicode(peer.get_name(), zmq.SNDMORE)
+            self.outbox.send(zmsg.content)
         elif zmsg.id == ZreMsg.SHOUT:
             # Pass up to caller API as WHISPER event
-            self._pipe.send_unicode("SHOUT", zmq.SNDMORE)
-            self._pipe.send(peer.get_identity().bytes, zmq.SNDMORE)
-            self._pipe.send_unicode(peer.get_name(), zmq.SNDMORE)
-            self._pipe.send_unicode(zmsg.get_group(), zmq.SNDMORE)
-            self._pipe.send(zmsg.content)
+            self.outbox.send_unicode("SHOUT", zmq.SNDMORE)
+            self.outbox.send(peer.get_identity().bytes, zmq.SNDMORE)
+            self.outbox.send_unicode(peer.get_name(), zmq.SNDMORE)
+            self.outbox.send_unicode(zmsg.get_group(), zmq.SNDMORE)
+            self.outbox.send(zmsg.content)
         elif zmsg.id == ZreMsg.PING:
             peer.send(ZreMsg(id=ZreMsg.PING_OK))
         elif zmsg.id == ZreMsg.JOIN:
