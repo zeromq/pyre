@@ -149,7 +149,10 @@ class ZBeaconAgent(object):
             # ipv4 only currently and needs a valid broadcast address
             for name, data in iface.items():
                 if data.get(2) and data[2].get('broadcast'):
-                    ipadr = ipaddress.IPv4Address(data[2].get('addr'))
+                    addr = data[2].get('addr')
+                    if (sys.version_info.major < 3):
+                        addr = addr.decode('utf-8')
+                    ipadr = ipaddress.IPv4Address(addr)
                     if not ipadr.is_loopback:
                         netmask = data[2].get('netmask')
                         ifc = ipaddress.ip_interface("%s/%s" %(ipadr, netmask))
