@@ -75,16 +75,23 @@ class ZActor(object):
         self.tag = 0xDeadBeef;
 
     def send(self, *args, **kwargs):
-        self.pipe.send(*args, **kwargs)
+        return self.pipe.send(*args, **kwargs)
 
     def send_unicode(self, *args, **kwargs):
-        self.pipe.send_unicode(*args, **kwargs)
+        return self.pipe.send_unicode(*args, **kwargs)
+
+    def send_pyobj(self, *args, **kwargs):
+        return self.pipe.send_pyobj(*args, **kwargs)
 
     def recv(self, *args, **kwargs):
         return self.pipe.recv(*args, **kwargs)
 
     def recv_multipart(self, *args, **kwargs):
         return self.pipe.recv_multipart(*args, **kwargs)
+
+    def recv_pyobj(self, *args, **kwargs):
+        print(args, kwargs)
+        return self.pipe.recv_pyobj(*args, **kwargs)
 
     # --------------------------------------------------------------------------
     # Probe the supplied object, and report if it looks like a zactor_t.

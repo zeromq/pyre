@@ -218,12 +218,10 @@ class PyreNode(object):
 
                 logger.debug("Node is leaving group {0}".format(grpname))
         elif command == "PEERS":
-            self._pipe.send_unicode("p", zmq.SNDMORE)
-            self._pipe.send_unicode("%s" %self.peers)
+            self._pipe.send_pyobj(list(self.peers.keys()))
         elif command == "PEER ENDPOINT":
             id = uuid.UUID(bytes=request.pop(0))
             peer = self.peers[id]
-            self._pipe.send_unicode("s", zmq.SNDMODE)
             self._pipe.send_unicode("%s" %peer.get_endpoint())
         elif command == "PEER HEADER":
             id = uuid.UUID(bytes=request.pop(0))
@@ -234,11 +232,9 @@ class PyreNode(object):
             else:
                 self._pipe.send_unicode(peer.headers[key])
         elif command == "PEER GROUPS":
-            self._pipe.send_unicode("p", zmq.SNDMORE)
-            self._pipe.send_unicode("%s" %self.peer_groups)
+            self._pipe.send_pyobj(list(self.peer_groups.keys()))
         elif command == "OWN GROUPS":
-            self._pipe.send_unicode("p", zmq.SNDMORE)
-            self._pipe.send_unicode("%s" %self.own_groups)
+            self._pipe.send_pyobj(list(self.own_groups.keys()))
         elif command == "DUMP":
             # TODO: zyre_node_dump (self);
             pass
