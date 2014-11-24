@@ -142,7 +142,7 @@ class Pyre(object):
     #  destroy it when finished with it.
     def get_peers(self):
         self.actor.send_unicode("PEERS")
-        peers = self.recv()
+        peers = self.actor.recv_multipart()
         return peers
 
     # --------------------------------------------------------------------------
@@ -151,7 +151,7 @@ class Pyre(object):
     def get_peer_address(peer):
         self.actor.send_unicode("PEER ENDPOINT", zmq.SNDMORE)
         self.actor.send(peer)
-        adr = self.recv()
+        adr = self.actor.recv_multipart()
         return peers
 
     #  --------------------------------------------------------------------------
@@ -161,20 +161,20 @@ class Pyre(object):
         self.actor.send_unicode("PEER HEADER", zmq.SNDMORE)
         self.actor.send(peer.bytes, zmq.SNDMORE)
         self.actor.send_unicode(name)
-        value = self.recv()
+        value = self.actor.recv()
         return value
 
     #  --------------------------------------------------------------------------
     #  Return zlist of currently joined groups.
     def get_own_groups():
         self.actor.send_unicode("OWN GROUPS");
-        groups = self.recv()
+        groups = self.actor.recv_multipart()
 
     #  --------------------------------------------------------------------------
     #  Return zlist of groups known through connected peers. 
     def get_peer_groups():
         self.actor.send_unicode("PEER GROUPS")
-        groups = self.recv()
+        groups = self.actor.recv_multipart()
         return groups
 
     # Return node socket, for direct polling of socket
