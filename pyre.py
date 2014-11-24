@@ -76,10 +76,10 @@ class Pyre(object):
         self.actor.send_unicode("SET INTERVAL", zmq.SNDMORE)
         self.actor.send_unicode(interval)
 
-    def set_interface(iface):
+    def set_interface(self, iface):
         logging.debug("set_interface not implemented")
 
-    def set_endpoint(endpoint):
+    def set_endpoint(self, endpoint):
         self.actor.send_unicode("SET ENDPOINT", zmq.SNDMORE)
         self.actor.send_unicode(endpoint)
 
