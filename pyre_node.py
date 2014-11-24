@@ -127,7 +127,7 @@ class PyreNode(object):
         request = self._pipe.recv_multipart()
         command = request.pop(0).decode('UTF-8')
         if command == "UUID":
-            self._pipe.send(self.identity)
+            self._pipe.send(self.identity.bytes)
         elif command == "NAME":
             self._pipe.send_unicode(self.name)
         elif command == "SET NAME":
