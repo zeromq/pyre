@@ -151,7 +151,7 @@ class Pyre(object):
     def get_peer_address(self, peer):
         self.actor.send_unicode("PEER ENDPOINT", zmq.SNDMORE)
         self.actor.send(peer.bytes)
-        adr = self.actor.recv()
+        adr = self.actor.recv_unicode()
         return adr
 
     #  --------------------------------------------------------------------------
@@ -161,7 +161,7 @@ class Pyre(object):
         self.actor.send_unicode("PEER HEADER", zmq.SNDMORE)
         self.actor.send(peer.bytes, zmq.SNDMORE)
         self.actor.send_unicode(name)
-        value = self.actor.recv()
+        value = self.actor.recv_unicode()
         return value
 
     #  --------------------------------------------------------------------------
@@ -169,6 +169,7 @@ class Pyre(object):
     def get_own_groups(self):
         self.actor.send_unicode("OWN GROUPS");
         groups = self.actor.recv_pyobj()
+        return groups
 
     #  --------------------------------------------------------------------------
     #  Return zlist of groups known through connected peers. 
@@ -180,12 +181,6 @@ class Pyre(object):
     # Return node socket, for direct polling of socket
     def get_socket(self):
         return self.actor.resolve()
-
-    # Set node header value
-    def set_header(self, name, value, *args):
-        self.actor.send_unicode("SET HEADER", flags=zmq.SNDMORE)
-        self.actor.send_unicode(name, flags=zmq.SNDMORE)
-        self.actor.send_unicode(value, flags=zmq.SNDMORE)
 
 # TODO: make a unittest or selftest
 
