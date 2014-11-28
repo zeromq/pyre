@@ -86,11 +86,13 @@ class ZActor(object):
     def recv(self, *args, **kwargs):
         return self.pipe.recv(*args, **kwargs)
 
+    def recv_unicode(self, *args, **kwargs):
+        return self.pipe.recv_unicode(*args, **kwargs)
+
     def recv_multipart(self, *args, **kwargs):
         return self.pipe.recv_multipart(*args, **kwargs)
 
     def recv_pyobj(self, *args, **kwargs):
-        print(args, kwargs)
         return self.pipe.recv_pyobj(*args, **kwargs)
 
     # --------------------------------------------------------------------------

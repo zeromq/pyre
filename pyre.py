@@ -151,7 +151,7 @@ class Pyre(object):
     def get_peer_address(self, peer):
         self.actor.send_unicode("PEER ENDPOINT", zmq.SNDMORE)
         self.actor.send(peer.bytes)
-        adr = self.actor.recv()
+        adr = self.actor.recv_unicode()
         return adr
 
     #  --------------------------------------------------------------------------
@@ -169,6 +169,7 @@ class Pyre(object):
     def get_own_groups(self):
         self.actor.send_unicode("OWN GROUPS");
         groups = self.actor.recv_pyobj()
+        return groups
 
     #  --------------------------------------------------------------------------
     #  Return zlist of groups known through connected peers. 
