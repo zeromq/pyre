@@ -28,6 +28,8 @@ class PyreNode(object):
         self._verbose = False                       # Log all traffic (logging module?)
         self.beacon_port = ZRE_DISCOVERY_PORT       # Beacon port number
         self.interval = 0                           # Beacon interval 0=default
+        self.beacon = None                          # Beacon actor
+        self.beacon_socket = None                   # Beacon socket for polling
         self.poller = zmq.Poller()                  # Socket poller
         self.identity = uuid.uuid4()                # Our UUID as object
         self.bound = False
@@ -46,7 +48,7 @@ class PyreNode(object):
         self.own_groups = {}                        # Groups that we are in
         self.headers = {}                           # Our header values
         # TODO: gossip stuff
-        self.start()
+        #self.start()
         self.run()
 
     # def __del__(self):
@@ -88,7 +90,8 @@ class PyreNode(object):
         filter = struct.pack("ccc", b'Z', b'R', b'E')
         self.beacon.subscribe(filter)
 
-        self.poller.register(self.beacon.get_socket(), zmq.POLLIN)
+        self.beacon_socket = self.beacon.get_socket()
+        self.poller.register(self.beacon_socket, zmq.POLLIN)
 
         # TODO: gossip stuff
 
@@ -105,13 +108,15 @@ class PyreNode(object):
             self.beacon.publish(stop_transmit)
             # Give time for beacon to go out
             time.sleep(0.001)
-        self.poller.unregister(self.beacon.get_socket())
+            self.poller.unregister(self.beacon_socket)
+            self.beacon = None
+            self.beacon_socket = None
 
-        #self.port = endpoint.split(':')[2]
-        #self.bound = True
         self.beacon_port = 0
-        # Stop polling on inbox
-        self.poller.unregister(self.inbox)
+
+        if self.bound:
+            # Stop polling on inbox
+            self.poller.unregister(self.inbox)
 
     def bind(self, endpoint):
         logger.warning("Not implemented")
@@ -221,12 +226,15 @@ class PyreNode(object):
             self._pipe.send_pyobj(list(self.peers.keys()))
         elif command == "PEER ENDPOINT":
             id = uuid.UUID(bytes=request.pop(0))
-            peer = self.peers[id]
-            self._pipe.send_unicode("%s" %peer.get_endpoint())
+            peer = self.peers.get(id)
+            if peer:
+                self._pipe.send_unicode("%s" %peer.get_endpoint())
+            else:
+                self._pipe.send_unicode("")
         elif command == "PEER HEADER":
             id = uuid.UUID(bytes=request.pop(0))
             key = request.pop(0).decode('UTF-8')
-            peer = self.peers[id]
+            peer = self.peers.get(id)
             if not peer:
                 self._pipe.send_unicode("")
             else:
@@ -475,7 +483,7 @@ class PyreNode(object):
                 self.recv_api()
             if self.inbox in items and items[self.inbox] == zmq.POLLIN:
                 self.recv_peer()
-            if self.beacon.get_socket() in items and items[self.beacon.get_socket()] == zmq.POLLIN:
+            if self.beacon_socket in items and items[self.beacon_socket] == zmq.POLLIN:
                 self.recv_beacon()
             if time.time() >= reap_at:
                 reap_at = time.time() + REAP_INTERVAL

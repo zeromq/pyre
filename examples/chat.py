@@ -8,6 +8,7 @@ import sys
 def chat_task(ctx, pipe):
     n = Pyre(ctx)
     n.join("CHAT")
+    n.start()
 
     poller = zmq.Poller()
     poller.register(pipe, zmq.POLLIN)
