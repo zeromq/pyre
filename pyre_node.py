@@ -161,7 +161,7 @@ class PyreNode(object):
         elif command == "START":
             # zsock_signal (self->pipe, zyre_node_start (self));
             self.start()
-            #self.run()
+            self._pipe.signal()
         elif command == "STOP":
             # zsock_signal (self->pipe, zyre_node_stop (self));
             self.stop()

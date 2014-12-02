@@ -86,7 +86,8 @@ class Pyre(object):
     # TODO: We haven't implemented gossiping yet
     def start(self):
         self.actor.send_unicode("START")
-        # TODO wait signal
+        # the backend will signal back
+        self.actor.resolve().wait()
 
     def stop(self):
         self.actor.send_unicode("STOP", flags=zmq.DONTWAIT)
