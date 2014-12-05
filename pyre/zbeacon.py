@@ -152,20 +152,45 @@ class ZBeaconAgent(object):
             # Loop over the interfaces and their settings to try to find the broadcast address.
             # ipv4 only currently and needs a valid broadcast address
             for name, data in iface.items():
-                if data.get(2) and data[2].get('broadcast'):
-                    addr = data[2].get('addr')
-                    if (sys.version_info.major < 3):
-                        addr = addr.decode('utf-8')
-                    ipadr = ipaddress.IPv4Address(addr)
-                    if not ipadr.is_loopback:
-                        netmask = data[2].get('netmask')
-                        ifc = ipaddress.ip_interface("%s/%s" %(ipadr, netmask))
-                        self.address = ipadr
-                        self.network_address = ifc.network.network_address
-                        self.broadcast_address = ifc.network.broadcast_address
-                        self.interface_name = iface
-                        assert(data[2].get('broadcast') == str(self.broadcast_address))
-                        break
+                logger.debug("Checking out interface {0}.".format(name))
+                # For some reason the data we need lives in the "2" section of the interface.
+                data_2 = data.get(2)
+
+                if not data_2:
+                    logger.debug("No data_2 found for interface {0}.".format(name))
+                    continue
+
+                address_str = data_2.get("addr")
+                netmask_str = data_2.get("netmask")
+
+                if not address_str or not netmask_str:
+                    logger.debug("Address or netmask not found for interface {0}.".format(name))
+                    continue
+
+                if isinstance(address_str, bytes):
+                    address_str = address_str.decode("utf8")
+
+                if isinstance(netmask_str, bytes):
+                    netmask_str = netmask_str.decode("utf8")
+
+                interface_string = "{0}/{1}".format(address_str, netmask_str)
+
+                interface = ipaddress.ip_interface(interface_string)
+
+                if interface.is_loopback:
+                    logger.debug("Interface {0} is a loopback device.".format(name))
+                    continue
+
+                self.address = interface.ip
+                self.network_address = interface.network.network_address
+                self.broadcast_address = interface.network.broadcast_address
+                self.interface_name = name
+
+                logger.debug("Address: {0}".format(self.address))
+                logger.debug("Network: {0}".format(self.network_address))
+                logger.debug("Broadcast: {0}".format(self.broadcast_address))
+                logger.debug("Interface name: {0}".format(self.interface_name))
+
             if self.address:
                 break
 
