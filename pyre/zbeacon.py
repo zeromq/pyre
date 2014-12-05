@@ -145,7 +145,11 @@ class ZBeaconAgent(object):
         # find a non local ipaddress 
         # TODO: only choose highest available ipaddress
         netinf = zhelper.get_ifaddrs()
+
+        logger.debug("Available interfaces: {0}".format(netinf))
+
         for iface in netinf:
+            # Loop over the interfaces and their settings to try to find the broadcast address.
             # ipv4 only currently and needs a valid broadcast address
             for name, data in iface.items():
                 if data.get(2) and data[2].get('broadcast'):
@@ -164,6 +168,11 @@ class ZBeaconAgent(object):
                         break
             if self.address:
                 break
+
+        logger.debug("Finished scanning interfaces.")
+
+        if not self.address:
+            logger.error("No suitable interface found.")
 
         self._init_socket()
         self._pipe.send_unicode(str(self.address))
