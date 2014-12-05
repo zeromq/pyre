@@ -140,9 +140,7 @@ class ZBeaconAgent(object):
         self.broadcast_address = None
         # Our interface name
         self.interface_name = None
-        # ipaddress module wants unicode strings which is default in py3
-        if (sys.version_info.major < 3):
-            announce_addr = announce_addr.decode('utf-8')
+
         self.announce_address = ipaddress.IPv4Address(announce_addr)
         # find a non local ipaddress 
         # TODO: only choose highest available ipaddress
