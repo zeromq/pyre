@@ -8,7 +8,6 @@ setup(
         author_email='arnaud@sphaero.org',
         url='http://www.github.com/zeromq/pyre/',
         packages=['pyre'],
-        package_dir={'pyre': '.'},
         include_package_data=True,
         requires=['pyzmq', 'ipaddress']
 )
