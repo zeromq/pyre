@@ -3,7 +3,12 @@ import zmq
 import threading
 import binascii
 import os
+
+import logging
+
 from . import zsocket
+
+logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------
 # Create a pipe, which consists of two PAIR sockets connected over inproc.
@@ -243,9 +248,15 @@ def get_ifaddrs():
 
         if ifa.ifa_addr:
             sa = sockaddr.from_address(ifa.ifa_addr)
-        
+
         else:
-            break
+            if ifa.ifa_next:
+                ifa = ifaddrs.from_address(ifa.ifa_next)
+                continue
+
+            else:
+                logger.debug("ifa.ifa_addr and ifa.ifa_next are Falsy, breaking early!")
+                break
 
         data = {}
 
@@ -335,13 +346,13 @@ def get_win_ifaddrs():
     import ctypes.wintypes
     from ctypes.wintypes import DWORD, WCHAR, BYTE, BOOL
     from socket import AF_INET
-    
+
     # from iptypes.h
     MAX_ADAPTER_ADDRESS_LENGTH = 8
     MAX_DHCPV6_DUID_LENGTH = 130
 
     GAA_FLAG_INCLUDE_PREFIX = ctypes.c_ulong(0x0010)
-    
+
     class SOCKADDR(ctypes.Structure):
         _fields_ = [
             ('family', ctypes.c_ushort),
@@ -398,7 +409,7 @@ def get_win_ifaddrs():
     class IP_ADAPTER_ADDRESSES(ctypes.Structure):
         pass
     LP_IP_ADAPTER_ADDRESSES = ctypes.POINTER(IP_ADAPTER_ADDRESSES)
-    
+
     # for now, just use void * for pointers to unused structures
     PIP_ADAPTER_ANYCAST_ADDRESS = ctypes.c_void_p
     PIP_ADAPTER_MULTICAST_ADDRESS = ctypes.c_void_p
@@ -461,7 +472,7 @@ def get_win_ifaddrs():
     def GetAdaptersAddresses():
         """
         Returns an iteratable list of adapters
-        """ 
+        """
         size = ctypes.c_ulong()
         GetAdaptersAddresses = ctypes.windll.iphlpapi.GetAdaptersAddresses
         GetAdaptersAddresses.argtypes = [
@@ -497,7 +508,7 @@ def get_win_ifaddrs():
         #print("\tfamily: {0}".format(ad.family))
         ip_int = struct.unpack('>2xI8x', ad.data)[0]
         ip = ipaddress.IPv4Address(ip_int)
-        ip_if = ipaddress.IPv4Interface("{0}/{1}".format(ip,fu.on_link_prefix_length)) 
+        ip_if = ipaddress.IPv4Interface("{0}/{1}".format(ip,fu.on_link_prefix_length))
         #print("\tipaddress: {0}".format(ip))
         #print("\tnetmask: {0}".format(ip_if.netmask))
         #print("\tnetwork: {0}".format(ip_if.network.network_address))
@@ -509,7 +520,7 @@ def get_win_ifaddrs():
         data['broadcast'] = "{0}".format(ip_if.network.broadcast_address)
         data['network'] = "{0}".format(ip_if.network.network_address)
 
-        name = i.description 
+        name = i.description
         #result[i.description] = { ad.family : d}
         iface = {}
         for interface in result:
