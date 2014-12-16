@@ -244,72 +244,69 @@ def get_ifaddrs():
         if ifa.ifa_addr:
             sa = sockaddr.from_address(ifa.ifa_addr)
         
-        else:
-            break
+            data = {}
 
-        data = {}
+            if sa.sa_family == AF_INET:
+                if ifa.ifa_addr is not None:
+                    si = sockaddr_in.from_address(ifa.ifa_addr)
+                    data['addr'] = inet_ntop(AF_INET, si.sin_addr)
 
-        if sa.sa_family == AF_INET:
-            if ifa.ifa_addr is not None:
-                si = sockaddr_in.from_address(ifa.ifa_addr)
-                data['addr'] = inet_ntop(AF_INET, si.sin_addr)
+                if ifa.ifa_netmask is not None:
+                    si = sockaddr_in.from_address(ifa.ifa_netmask)
+                    data['netmask'] = inet_ntop(AF_INET, si.sin_addr)
 
-            if ifa.ifa_netmask is not None:
-                si = sockaddr_in.from_address(ifa.ifa_netmask)
-                data['netmask'] = inet_ntop(AF_INET, si.sin_addr)
+                # check if a valid broadcast address is set and retrieve it
+                # 0x2 == IFF_BROADCAST
+                if ifa.ifa_flags & 0x2:
+                    si = sockaddr_in.from_address(ifa.ifa_ifu.ifu_broadaddr)
+                    data['broadcast'] = inet_ntop(AF_INET, si.sin_addr)
 
-            # check if a valid broadcast address is set and retrieve it
-            # 0x2 == IFF_BROADCAST
-            if ifa.ifa_flags & 0x2:
-                si = sockaddr_in.from_address(ifa.ifa_ifu.ifu_broadaddr)
-                data['broadcast'] = inet_ntop(AF_INET, si.sin_addr)
+            if sa.sa_family == AF_INET6:
+                if ifa.ifa_addr is not None:
+                    si = sockaddr_in6.from_address(ifa.ifa_addr)
+                    data['addr'] = inet_ntop(AF_INET6, si.sin6_addr)
 
-        if sa.sa_family == AF_INET6:
-            if ifa.ifa_addr is not None:
-                si = sockaddr_in6.from_address(ifa.ifa_addr)
-                data['addr'] = inet_ntop(AF_INET6, si.sin6_addr)
+                    if data['addr'].startswith('fe80:'):
+                        data['scope'] = si.sin6_scope_id
 
-                if data['addr'].startswith('fe80:'):
-                    data['scope'] = si.sin6_scope_id
+                if ifa.ifa_netmask is not None:
+                    si = sockaddr_in6.from_address(ifa.ifa_netmask)
+                    data['netmask'] = inet_ntop(AF_INET6, si.sin6_addr)
 
-            if ifa.ifa_netmask is not None:
-                si = sockaddr_in6.from_address(ifa.ifa_netmask)
-                data['netmask'] = inet_ntop(AF_INET6, si.sin6_addr)
+            if sa.sa_family == AF_PACKET:
+                if ifa.ifa_addr is not None:
+                    si = sockaddr_ll.from_address(ifa.ifa_addr)
+                    addr = ""
+                    total = 0
+                    for i in range(si.sll_halen):
+                        total += si.sll_addr[i]
+                        addr += "%02x:" % si.sll_addr[i]
+                    addr = addr[:-1]
+                    if total > 0:
+                        data['addr'] = addr
 
-        if sa.sa_family == AF_PACKET:
-            if ifa.ifa_addr is not None:
-                si = sockaddr_ll.from_address(ifa.ifa_addr)
-                addr = ""
-                total = 0
-                for i in range(si.sll_halen):
-                    total += si.sll_addr[i]
-                    addr += "%02x:" % si.sll_addr[i]
-                addr = addr[:-1]
-                if total > 0:
+            if sa.sa_family == AF_LINK:
+                dl = sockaddr_dl.from_address(ifa.ifa_addr)
+
+                if dl.sdl_type == IFT_ETHER:
+                    addr = ""
+                    for i in range(dl.sdl_alen):
+                        addr += "%02x:" % dl.sdl_data[dl.sdl_nlen + i]
+
+                    addr = addr[:-1]
                     data['addr'] = addr
 
-        if sa.sa_family == AF_LINK:
-            dl = sockaddr_dl.from_address(ifa.ifa_addr)
-
-            if dl.sdl_type == IFT_ETHER:
-                addr = ""
-                for i in range(dl.sdl_alen):
-                    addr += "%02x:" % dl.sdl_data[dl.sdl_nlen + i]
-
-                addr = addr[:-1]
-                data['addr'] = addr
-
-        if len(data) > 0:
-            iface = {}
-            for interface in result:
-                if name in interface.keys():
-                    iface = interface
-                    break
-            if iface:
-                iface[name][sa.sa_family] = data
-            else:
-                iface[name] = { sa.sa_family : data }
-                result.append(iface)
+            if len(data) > 0:
+                iface = {}
+                for interface in result:
+                    if name in interface.keys():
+                        iface = interface
+                        break
+                if iface:
+                    iface[name][sa.sa_family] = data
+                else:
+                    iface[name] = { sa.sa_family : data }
+                    result.append(iface)
 
         if ifa.ifa_next:
             ifa = ifaddrs.from_address(ifa.ifa_next)
