@@ -37,7 +37,7 @@ class PyreNode(object):
         try:
             self.inbox.setsockopt(zmq.ROUTER_HANDOVER, 1)
         except AttributeError as e:
-            logging.warning("can't set ROUTER_HANDOVER, probably old (py)zmq version")
+            logging.warning("can't set ROUTER_HANDOVER, needs zmq version >=4.1 but installed is {0}".format(zmq.zmq_version()))
         self.poller.register(self._pipe, zmq.POLLIN)
         self.name = str(self.identity)[:6]          # Our public name (default=first 6 uuid chars)
         self.endpoint = ""                          # Our public endpoint
