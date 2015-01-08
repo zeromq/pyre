@@ -25,7 +25,7 @@ class PyrePeer(object):
         self.status = 0          # Our status counter
         self.sent_sequence = 0   # Outgoing message sequence
         self.want_sequence = 0   # Incoming message sequence
-        self.headers = []        # Peer headers
+        self.headers = {}        # Peer headers
 
     def __del__(self):
         self.disconnect()
@@ -167,7 +167,7 @@ class PyrePeer(object):
 
     # Get peer header value
     def get_header(self, key):
-        return self.headers.get(key, None)
+        return self.headers.get(key, "")
     # end get_header
 
     # Get peer headers
