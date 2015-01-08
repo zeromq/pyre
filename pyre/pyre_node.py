@@ -238,7 +238,7 @@ class PyreNode(object):
             if not peer:
                 self._pipe.send_unicode("")
             else:
-                self._pipe.send_unicode(peer.headers[key])
+                self._pipe.send_unicode(peer.get_header(key))
         elif command == "PEER GROUPS":
             self._pipe.send_pyobj(list(self.peer_groups.keys()))
         elif command == "OWN GROUPS":
