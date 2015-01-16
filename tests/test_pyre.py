@@ -2,6 +2,7 @@ import unittest
 import pyre
 import zmq
 import time
+import logging
 
 class PyreTest(unittest.TestCase):
     
@@ -56,13 +57,30 @@ class PyreTest(unittest.TestCase):
     def test_get_own_groups(self):
         self.node1.join("TEST")
         self.node2.join("TEST")
-
         # pyre works asynchronous so give some time to let changes disperse
         time.sleep(0.5)
 
         self.assertIn("TEST", self.node1.get_own_groups())
         self.assertIn("TEST", self.node2.get_own_groups())
     # end test_get_own_groups
+
+    def test_join_leave_msg(self):
+        msg = self.node1.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        msg = self.node2.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        self.node1.join("TEST")
+        self.node2.join("TEST")
+        msg = self.node1.recv()
+        self.assertEqual(msg[0], b'JOIN')
+        msg = self.node2.recv()
+        self.assertEqual(msg[0], b'JOIN')
+        self.node1.leave("TEST")
+        self.node2.leave("TEST")
+        msg = self.node1.recv()
+        self.assertEqual(msg[0], b'LEAVE')
+        msg = self.node2.recv()
+        self.assertEqual(msg[0], b'LEAVE')
 
     def test_get_peer_groups(self):
         self.node1.join("TEST")
@@ -75,6 +93,37 @@ class PyreTest(unittest.TestCase):
         self.assertIn("TEST", self.node2.get_peer_groups())
     # end test_get_peer_groups
 
+    def test_whispers(self):
+        msg = self.node1.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        msg = self.node2.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        self.node1.whispers(self.node2.get_uuid(), "Hi")
+        msg = self.node2.recv()
+        self.assertEqual(b"WHISPER", msg[0])
+        self.assertEqual(self.node1.get_uuid().bytes, msg[1])
+        self.assertEqual(b"node1", msg[2])
+        self.assertEqual(b"Hi", msg[3])
+
+    def test_shouts(self):
+        msg = self.node1.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        msg = self.node2.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        self.node1.join("TEST")
+        self.node2.join("TEST")
+        msg = self.node1.recv()
+        self.assertEqual(msg[0], b'JOIN')
+        msg = self.node2.recv()
+        self.assertEqual(msg[0], b'JOIN')
+        self.node1.shouts("TEST", "Hi")
+        msg = self.node2.recv()
+        self.assertEqual(b"SHOUT", msg[0])
+        self.assertEqual(self.node1.get_uuid().bytes, msg[1])
+        self.assertEqual(b"node1", msg[2])
+        self.assertEqual(b"TEST", msg[3])
+        self.assertEqual(b"Hi", msg[4])
+
     def test_zfinal(self):
         global inst_count
         inst_count = 1
@@ -84,6 +133,9 @@ class PyreTest(unittest.TestCase):
 
 if __name__ == '__main__':
     inst_count = 0
+
+    logger = logging.getLogger("pyre")
+    logger.setLevel(logging.DEBUG)
 
     try:
         unittest.main()
