@@ -147,6 +147,15 @@ class Pyre(object):
         return peers
 
     # --------------------------------------------------------------------------
+    # Return the name of a connected peer. Caller owns the
+    # string.
+    def get_peer_name(self, peer):
+        self.actor.send_unicode("PEER NAME", zmq.SNDMORE)
+        self.actor.send(peer.bytes)
+        name = self.actor.recv_unicode()
+        return name
+
+    # --------------------------------------------------------------------------
     # Return the endpoint of a connected peer. Caller owns the
     # string.
     def get_peer_address(self, peer):
