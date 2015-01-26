@@ -348,8 +348,8 @@ class ZBeaconAgent(object):
         try:
             data, addr = self._udp_sock.recvfrom(BEACON_MAX)
 
-        except socket.error:
-            logger.exception("Exception while receiving")
+        except Exception as e:
+            logger.exception("Exception while receiving: {0}".format(e))
 
         # Get sender address as printable string
         peername = addr[0]
