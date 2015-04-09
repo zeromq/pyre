@@ -61,43 +61,49 @@ class PyreNode(object):
         # gossip our endpoint to others.
         if self.beacon_port:
             # Start beacon discovery
-            self.beacon = ZBeacon(self._ctx, self.beacon_port)
-        if self.interval:
-            self.beacon.set_interval(self.interval)
+            self.beacon = ZActor(self._ctx, ZBeacon)
 
-        # Our hostname is provided by zbeacon
-        self.port = self.inbox.bind_to_random_port("tcp://*")
-        if self.port < 0:
-            # Die on bad interface or port exhaustion
-            logging.critical("Random port assignment for incoming messages failed. Exiting.")
-            sys.exit(-1)
-        else:
-            self.bound = True
-      
-        # Our own host endpoint is provided by the beacon
-        self.endpoint = "tcp://%s:%d" %(self.beacon.get_hostname(), self.port)
+            if self._verbose:
+                self.beacon.send_unicode("VERBOSE")
 
-        # TODO: how do we set the header of the beacon?
-        # line 299 zbeacon.c
 
-        # Set broadcast/listen beacon
-        transmit = struct.pack('cccb16sH', b'Z', b'R', b'E',
-                               BEACON_VERSION, self.identity.bytes,
-                               socket.htons(self.port))
-        self.beacon.noecho()
-        self.beacon.publish(transmit)
-        # construct the header filter  (to discard none zre messages)
-        filter = struct.pack("ccc", b'Z', b'R', b'E')
-        self.beacon.subscribe(filter)
+            # Our hostname is provided by zbeacon
+            self.beacon.send_unicode("CONFIGURE", zmq.SNDMORE)
+            self.beacon.send(struct.pack("I", self.beacon_port))
+            hostname = self.beacon.recv_unicode()
 
-        self.beacon_socket = self.beacon.get_socket()
-        self.poller.register(self.beacon_socket, zmq.POLLIN)
+            #if self.interval:
+            #   self.beacon.set_interval(self.interval)
 
+            # Our hostname is provided by zbeacon
+            self.port = self.inbox.bind_to_random_port("tcp://*")
+            if self.port < 0:
+                # Die on bad interface or port exhaustion
+                logging.critical("Random port assignment for incoming messages failed. Exiting.")
+                sys.exit(-1)
+            else:
+                self.bound = True
+            self.endpoint = "tcp://%s:%d" %(hostname, self.port)
+
+            # Set broadcast/listen beacon
+            transmit = struct.pack('cccb16sH', b'Z', b'R', b'E',
+                                   BEACON_VERSION, self.identity.bytes,
+                                   socket.htons(self.port))
+            self.beacon.send_unicode("PUBLISH", zmq.SNDMORE)
+            self.beacon.send(transmit)
+            # construct the header filter  (to discard none zre messages)
+            filter = struct.pack("ccc", b'Z', b'R', b'E')
+            self.beacon.send_unicode("SUBSCRIBE",zmq.SNDMORE)
+            self.beacon.send(filter)
+
+            self.beacon_socket = self.beacon.resolve()
+            self.poller.register(self.beacon_socket, zmq.POLLIN)
+        #else:
         # TODO: gossip stuff
 
         # Start polling on inbox
         self.poller.register(self.inbox, zmq.POLLIN)
-        logger.debug("Node identity: {0}".format(self.identity))
+        #logger.debug("Node identity: {0}".format(self.identity))
 
     def stop(self):
         logger.debug("Pyre node: stopping beacon")
@@ -105,10 +111,12 @@ class PyreNode(object):
             stop_transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
                                    BEACON_VERSION, self.identity.bytes, 
                                    socket.htons(0))
-            self.beacon.publish(stop_transmit)
+            self.beacon.send_unicode("PUBLISH", zmq.SNDMORE)
+            self.beacon.send(stop_transmit)
             # Give time for beacon to go out
             time.sleep(0.001)
             self.poller.unregister(self.beacon_socket)
+            self.beacon.destroy()
             self.beacon = None
             self.beacon_socket = None
 
@@ -117,6 +125,9 @@ class PyreNode(object):
         if self.bound:
             # Stop polling on inbox
             self.poller.unregister(self.inbox)
+        self.outbox.send_unicode("STOP", zmq.SNDMORE)
+        self.outbox.send_unicode(self.identity.hex, zmq.SNDMORE)
+        self.outbox.send_unicode(self.name)
 
     def bind(self, endpoint):
         logger.warning("Not implemented")
@@ -421,7 +432,7 @@ class PyreNode(object):
 
     def recv_beacon(self):
         # Get IP address and beacon of peer
-        msgs = self.beacon.get_socket().recv_multipart()
+        msgs = self.beacon_socket.recv_multipart()
         ipaddress = msgs.pop(0)
         frame = msgs.pop(0)
 
@@ -483,7 +494,6 @@ class PyreNode(object):
             timeout = reap_at - time.time()
             if timeout < 0:
                 timeout = 0
-
             items = dict(self.poller.poll(timeout * 1000))
 
             if self._pipe in items and items[self._pipe] == zmq.POLLIN:
