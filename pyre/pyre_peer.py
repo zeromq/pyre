@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 
 class PyrePeer(object):
 
-    PEER_EXPIRED = 10             # expire after 10s
-    PEER_EVASIVE = 5              # mark evasive after 5s
+    PEER_EXPIRED = 30              # expire after 10s
+    PEER_EVASIVE = 10              # mark evasive after 5s
 
     def __init__(self, ctx, identity):
         # TODO: what to do with container?

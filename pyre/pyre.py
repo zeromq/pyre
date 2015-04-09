@@ -13,10 +13,6 @@ from .zactor import ZActor
 from .zsocket import ZSocket
 from .pyre_node import PyreNode
 
-BEACON_VERSION = 1
-ZRE_DISCOVERY_PORT = 5670
-REAP_INTERVAL = 1.0  # Once per second
-
 logger = logging.getLogger(__name__)
 
 
