@@ -80,6 +80,9 @@ class ZActor(object):
     def send_unicode(self, *args, **kwargs):
         return self.pipe.send_unicode(*args, **kwargs)
 
+    def send_multipart(self, *args, **kwargs):
+        return self.pipe.send_multipart(*args, **kwargs)
+
     def send_pyobj(self, *args, **kwargs):
         return self.pipe.send_pyobj(*args, **kwargs)
 
