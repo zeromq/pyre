@@ -17,3 +17,4 @@ script:
     - PYTHONPATH="." python tests/test_pyre.py
     - PYTHONPATH="." python tests/test_zbeacon.py
     - PYTHONPATH="." python tests/test_zhelper.py
+    - PYTHONPATH="." python tests/test_zactor.py
