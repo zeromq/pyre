@@ -92,8 +92,11 @@ class Pyre(object):
         self.actor.destroy()
 
     # Receive next message from node
-    def recv(self):
-        return self.inbox.recv_multipart()
+    def recv(self, *args, **kwargs):
+        return self.inbox.recv(*args, **kwargs)
+
+    def recv_multipart(self, *args, **kwargs):
+        return self.inbox.recv_multipart(*args, **kwargs)
 
     # Join a group
     def join(self, group):

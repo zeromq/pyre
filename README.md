@@ -71,8 +71,13 @@ For now use Pip:
 
     #  Receive next message from network; the message may be a control
     #  message (ENTER, EXIT, JOIN, LEAVE) or data (WHISPER, SHOUT).
+    #  Returns seperate frames of queued message! See: [PyZMQ Documentation](http://zeromq.github.io/pyzmq/api/zmq.html)
+    msg = node.recv();
+
+    #  Receive next message from network; the message may be a control
+    #  message (ENTER, EXIT, JOIN, LEAVE) or data (WHISPER, SHOUT).
     #  Returns a list of message frames
-    msgs = node.recv();
+    msgs = node.recv_multipart();
 
     # Send message to single peer, specified as a UUID object (import uuid)
     # Destroys message after sending
@@ -129,7 +134,7 @@ For now use Pip:
                 n.shout("CHAT", message)
 
             if n.inbox in items and items[n.inbox] == zmq.POLLIN:
-                cmds = n.recv()
+                cmds = n.recv_multipart()
                 type = cmds.pop(0)
 
                 peer_uuid_bytes = cmds.pop(0)

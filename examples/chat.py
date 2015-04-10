@@ -23,7 +23,7 @@ def chat_task(ctx, pipe):
             print("CHAT_TASK: %s" % message)
             n.shout("CHAT", message)
         if n.inbox in items and items[n.inbox] == zmq.POLLIN:
-            cmds = n.recv()
+            cmds = n.recv_multipart()
             type = cmds.pop(0)
             print("NODE_MSG TYPE: %s" % type)
             print("NODE_MSG PEER: %s" % uuid.UUID(bytes=cmds.pop(0)))
