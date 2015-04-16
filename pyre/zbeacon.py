@@ -36,6 +36,8 @@ logger = logging.getLogger(__name__)
 
 INTERVAL_DFLT = 1.0
 BEACON_MAX = 255      # Max size of beacon data
+MULTICAST_GRP = '225.25.25.25'
+
 
 class ZBeacon(object):
 
@@ -49,8 +51,7 @@ class ZBeacon(object):
         self.ping_at = 0              #  Next broadcast time
         self.transmit = None          #  Beacon transmit data
         self.filter = b""             #  Beacon filter data
-        self.broadcast = ipaddress.IPv4Address(0)
-                                      #  broadcast address
+
         self.terminated = False       #  Did caller ask us to quit?
         self.verbose = False          #  Verbose logging enabled?
         self.hostname = ""            #  Saved host name
@@ -68,9 +69,21 @@ class ZBeacon(object):
     def prepare_udp(self):
         self._prepare_socket()
         try:
-            if self.broadcast.is_multicast:
+            self.udpsock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            self.udpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+            #  On some platforms we have to ask to reuse the port
+            try:
+                self.udpsock.setsockopt(socket.SOL_SOCKET,
+                                        socket.SO_REUSEPORT, 1)
+
+            except AttributeError:
+                pass
+
+            if self.broadcast_address.is_multicast:
                 # TTL
-                self.udpsock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+                self.udpsock.setsockopt(socket.IPPROTO_IP,
+                                        socket.IP_MULTICAST_TTL, 2)
 
                 # TODO: This should only be used if we do not have inproc method!
                 self.udpsock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
@@ -95,56 +108,25 @@ class ZBeacon(object):
                 # Maximum memberships: /proc/sys/net/ipv4/igmp_max_memberships
                 # self.udpsock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP,
                 #       socket.inet_aton("225.25.25.25") + socket.inet_aton(host))
+                self.udpsock.bind(("", self.port_nbr))
 
-                group = socket.inet_aton("{0}".format(self.broadcast))
-                mreq = struct.pack('4sL', group, socket.INADDR_ANY)
+                group = socket.inet_aton("{0}".format(self.broadcast_address))
+                mreq = struct.pack('4sl', group, socket.INADDR_ANY)
 
                 self.udpsock.setsockopt(socket.SOL_IP,
-                                          socket.IP_ADD_MEMBERSHIP, mreq)
-
-                self.udpsock.setsockopt(socket.SOL_SOCKET,
-                                          socket.SO_REUSEADDR, 1)
-
-                #  On some platforms we have to ask to reuse the port
-                try:
-                    socket.self.udpsock.setsockopt(socket.SOL_SOCKET,
-                                                     socket.SO_REUSEPORT, 1)
-
-                except AttributeError:
-                    pass
-
-                self.udpsock.bind((str(self.address), self.port_nbr))
+                                        socket.IP_ADD_MEMBERSHIP, mreq)
 
             else:
-                # Only for broadcast
-                self.udpsock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                self.udpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-                #  On some platforms we have to ask to reuse the port
-                try:
-                    self.udpsock.setsockopt(socket.SOL_SOCKET,
-                                              socket.SO_REUSEPORT, 1)
-
-                except AttributeError:
-                    pass
-
                 # Platform specifics
-                if platform.startswith("win"):
-                    self.broadcast = self.broadcast_address
-                    self.udpsock.bind(("", self.port_nbr))
-
-                # Not sure if freebsd should be included
-                elif platform.startswith("darwin") or platform.startswith("freebsd"):
-                    self.broadcast = self.broadcast_address
-                    self.udpsock.bind(("", self.port_nbr))
-
-                else:
+                if platform.startswith("linux"):
                     # on linux we bind to the broadcast address and send to
                     # the broadcast address
-                    self.broadcast = self.broadcast_address
-                    self.udpsock.bind((str(self.broadcast_address), self.port_nbr))
+                    self.udpsock.bind((str(self.broadcast_address),
+                                       self.port_nbr))
+                else:
+                    self.udpsock.bind(("", self.port_nbr))
 
-                logger.debug("Set up a broadcast beacon to {0}:{1}".format(self.broadcast, self.port_nbr))
+                logger.debug("Set up a broadcast beacon to {0}:{1}".format(self.broadcast_address, self.port_nbr))
         except socket.error:
             logger.exception("Initializing of {0} raised an exception".format(self.__class__.__name__))
 
@@ -191,18 +173,21 @@ class ZBeacon(object):
                 self.broadcast_address = interface.network.broadcast_address
                 self.interface_name = name
 
-                logger.debug("Address: {0}".format(self.address))
-                logger.debug("Network: {0}".format(self.network_address))
-                logger.debug("Broadcast: {0}".format(self.broadcast_address))
-                logger.debug("Interface name: {0}".format(self.interface_name))
-
             if self.address:
                 break
 
         logger.debug("Finished scanning interfaces.")
 
         if not self.address:
-            logger.error("No suitable interface found.")
+            self.network_address = ipaddress.IPv4Address('127.0.0.1')
+            self.broadcast_address = ipaddress.IPv4Address(MULTICAST_GRP)
+            self.interface_name = 'loopback'
+            self.address = '127.0.0.1'
+
+        logger.debug("Address: {0}".format(self.address))
+        logger.debug("Network: {0}".format(self.network_address))
+        logger.debug("Broadcast: {0}".format(self.broadcast_address))
+        logger.debug("Interface name: {0}".format(self.interface_name))
 
     def configure(self, port_nbr):
         self.port_nbr = port_nbr
@@ -231,13 +216,13 @@ class ZBeacon(object):
             # Start broadcasting immediately
             self.ping_at = time.time()
         elif command == "SILENCE":
-            self.transmit == None
+            self.transmit = None
         elif command == "SUBSCRIBE":
             self.filter = request.pop(0)
         elif command == "UNSUBSCRIBE":
             self.filter = None
         elif command == "$TERM":
-            self.terminated = True;
+            self.terminated = True
         else:
             logger.error("zbeacon: - invalid command: {0}".format(command))
 
@@ -271,7 +256,8 @@ class ZBeacon(object):
 
     def send_beacon(self):
         try:
-            self.udpsock.sendto(self.transmit, (str(self.broadcast), self.port_nbr))
+            self.udpsock.sendto(self.transmit, (str(self.broadcast_address),
+                                                self.port_nbr))
         except OSError:
             logger.debug("Network seems gone, exiting zbeacon")
             self.terminated = True
