@@ -16,7 +16,7 @@ def chat_task(ctx, pipe, ncmds):
     while not n.get_peer_groups():
         pass
 
-    pipe.send(b'ready')
+    pipe.send('ready'.encode('utf-8'))
     cmds = 0
     t0 = time.time()
 
