@@ -51,6 +51,7 @@ if __name__ == '__main__':
     ntasks = 1000
     chat_pipe = zhelper.zthread_fork(ctx, chat_task, ntasks)
 
+    print("Waiting for Peer...")
     chat_pipe.recv()
 
     for i in range(ntasks):
