@@ -8,8 +8,6 @@ python:
 install:
   - pip install nose
   - pip install .
-branches:
-  only:
-    - master
+
 script: 
     - nosetests -v --exe pyre
