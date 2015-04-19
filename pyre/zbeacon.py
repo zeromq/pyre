@@ -292,7 +292,7 @@ class ZBeacon(object):
                 break
 
 
-if __name__ == '__main__':  # pragma: no cover
+if __name__ == '__main__':
     import zmq
     import struct
     import time

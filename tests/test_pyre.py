@@ -182,7 +182,6 @@ class PyreTest(unittest.TestCase):
     # end test_zfinal
 # end PyreTest
 
-
 if __name__ == '__main__':
     inst_count = 0
 
