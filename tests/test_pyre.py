@@ -6,6 +6,10 @@ import logging
 import sys
 
 
+if sys.version.startswith('3'):
+    unicode = str
+
+
 class PyreTest(unittest.TestCase):
     
     def setUp(self, *args, **kwargs):
@@ -43,9 +47,6 @@ class PyreTest(unittest.TestCase):
     def test_get_peer_address(self):
         id1 = self.node1.get_uuid()
         id2 = self.node2.get_uuid()
-
-        if sys.version.startswith('3'):
-            unicode = str
 
         self.assertIsInstance(self.node1.get_peer_address(id2), unicode)
         self.assertIsInstance(self.node2.get_peer_address(id1), unicode)
