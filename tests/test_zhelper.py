@@ -34,7 +34,6 @@ class ZHelperTest(unittest.TestCase):
         pipe = zhelper.zthread_fork(zmq.Context(), task)
         pipe.send(b'hello')
         assert pipe.recv() == b'goodbye'
-        pipe.close()
 
 # end ZHelperTest
 
