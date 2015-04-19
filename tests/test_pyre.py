@@ -3,6 +3,12 @@ import pyre
 import zmq
 import time
 import logging
+import sys
+
+
+if sys.version.startswith('3'):
+    unicode = str
+
 
 class PyreTest(unittest.TestCase):
     
@@ -42,8 +48,8 @@ class PyreTest(unittest.TestCase):
         id1 = self.node1.get_uuid()
         id2 = self.node2.get_uuid()
 
-        self.assertIsInstance(self.node1.get_peer_address(id2), str)
-        self.assertIsInstance(self.node2.get_peer_address(id1), str)
+        self.assertIsInstance(self.node1.get_peer_address(id2), unicode)
+        self.assertIsInstance(self.node2.get_peer_address(id1), unicode)
     # end test_get_peer_address
 
     def test_get_peer_header_value(self):

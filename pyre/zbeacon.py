@@ -1,3 +1,4 @@
+
 # ======================================================================
 #  zbeacon - LAN discovery and presence
 #
@@ -26,11 +27,11 @@ import ipaddress
 import socket
 import zmq
 import struct
-import sys
 import time
 from sys import platform
-from pyre.zactor import ZActor
-from pyre import zhelper
+from .zactor import ZActor
+from . import zhelper
+from .zhelper import u
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +163,7 @@ class ZBeacon(object):
 
                 interface_string = "{0}/{1}".format(address_str, netmask_str)
 
-                interface = ipaddress.ip_interface(interface_string)
+                interface = ipaddress.ip_interface(u(interface_string))
 
                 if interface.is_loopback:
                     logger.debug("Interface {0} is a loopback device.".format(name))
@@ -179,10 +180,10 @@ class ZBeacon(object):
         logger.debug("Finished scanning interfaces.")
 
         if not self.address:
-            self.network_address = ipaddress.IPv4Address('127.0.0.1')
-            self.broadcast_address = ipaddress.IPv4Address(MULTICAST_GRP)
+            self.network_address = ipaddress.IPv4Address(u('127.0.0.1'))
+            self.broadcast_address = ipaddress.IPv4Address(u(MULTICAST_GRP))
             self.interface_name = 'loopback'
-            self.address = '127.0.0.1'
+            self.address = u('127.0.0.1')
 
         logger.debug("Address: {0}".format(self.address))
         logger.debug("Network: {0}".format(self.network_address))

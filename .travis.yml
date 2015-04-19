@@ -1,20 +1,14 @@
 language: python
 python:
+  - "2.7"
   - "3.2"
   - "3.3"
   - "3.4"
-env:
-  - PYTHONPATH="src"
-# command to install dependencies
+
 install:
-  - if [[ $TRAVIS_PYTHON_VERSION == '3.2' ]]; then pip install ipaddress; fi
-  - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then pip install ipaddress; fi
-  - 'pip install pyzmq'
-branches:
-  only:
-    - master
+  - pip install nose
+  - pip install .
+
 script: 
-    - PYTHONPATH="." python tests/test_pyre.py
-    - PYTHONPATH="." python tests/test_zbeacon.py
-    - PYTHONPATH="." python tests/test_zhelper.py
-    - PYTHONPATH="." python tests/test_zactor.py
+    - pwd
+    - nosetests -v --exe

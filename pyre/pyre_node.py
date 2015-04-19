@@ -432,9 +432,10 @@ class PyreNode(object):
 
     def recv_beacon(self):
         # Get IP address and beacon of peer
-        msgs = self.beacon_socket.recv_multipart()
-        ipaddress = msgs.pop(0)
-        frame = msgs.pop(0)
+        try:
+            ipaddress, frame = self.beacon_socket.recv_multipart()
+        except ValueError:
+            return 
 
         beacon = struct.unpack('cccb16sH', frame)
         # Ignore anything that isn't a valid beacon
