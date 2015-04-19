@@ -32,18 +32,13 @@ import time
 from sys import platform
 from .zactor import ZActor
 from . import zhelper
+from .zhelper import u
 
 logger = logging.getLogger(__name__)
 
 INTERVAL_DFLT = 1.0
 BEACON_MAX = 255      # Max size of beacon data
 MULTICAST_GRP = '225.25.25.25'
-
-
-if sys.version.startswith('3'):
-    u = str
-else:
-    u = unicode
 
 
 class ZBeacon(object):

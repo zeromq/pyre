@@ -3,7 +3,14 @@ import zmq
 import threading
 import binascii
 import os
+import sys
 from . import zsocket
+
+
+if sys.version.startswith('3'):
+    u = str
+else:
+    u = unicode
 
 # --------------------------------------------------------------------------
 # Create a pipe, which consists of two PAIR sockets connected over inproc.
@@ -494,7 +501,7 @@ def get_win_ifaddrs():
         #print("\tfamily: {0}".format(ad.family))
         ip_int = struct.unpack('>2xI8x', ad.data)[0]
         ip = ipaddress.IPv4Address(ip_int)
-        ip_if = ipaddress.IPv4Interface("{0}/{1}".format(ip,fu.on_link_prefix_length)) 
+        ip_if = ipaddress.IPv4Interface(u("{0}/{1}".format(ip,fu.on_link_prefix_length)))
         #print("\tipaddress: {0}".format(ip))
         #print("\tnetmask: {0}".format(ip_if.netmask))
         #print("\tnetwork: {0}".format(ip_if.network.network_address))
