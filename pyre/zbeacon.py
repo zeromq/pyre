@@ -27,7 +27,6 @@ import ipaddress
 import socket
 import zmq
 import struct
-import sys
 import time
 from sys import platform
 from .zactor import ZActor
