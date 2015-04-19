@@ -6,8 +6,6 @@ import logging
 import sys
 
 
-
-
 class PyreTest(unittest.TestCase):
     
     def setUp(self, *args, **kwargs):
