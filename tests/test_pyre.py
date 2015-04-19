@@ -4,6 +4,7 @@ import zmq
 import time
 import logging
 import sys
+import uuid
 
 
 if sys.version.startswith('3'):
@@ -111,6 +112,18 @@ class PyreTest(unittest.TestCase):
         self.assertEqual(b"node1", msg[2])
         self.assertEqual(b"Hi", msg[3])
 
+    def test_whisper(self):
+        msg = self.node1.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        msg = self.node2.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        self.node1.whisper(self.node2.get_uuid(), b"Hi")
+        msg = self.node2.recv()
+        self.assertEqual(b"WHISPER", msg[0])
+        self.assertEqual(self.node1.get_uuid().bytes, msg[1])
+        self.assertEqual(b"node1", msg[2])
+        self.assertEqual(b"Hi", msg[3])
+
     def test_shouts(self):
         msg = self.node1.recv()
         self.assertEqual(msg[0], b'ENTER')
@@ -130,12 +143,45 @@ class PyreTest(unittest.TestCase):
         self.assertEqual(b"TEST", msg[3])
         self.assertEqual(b"Hi", msg[4])
 
+    def test_shout(self):
+        msg = self.node1.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        msg = self.node2.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        self.node1.join("TEST")
+        self.node2.join("TEST")
+        msg = self.node1.recv()
+        self.assertEqual(msg[0], b'JOIN')
+        msg = self.node2.recv()
+        self.assertEqual(msg[0], b'JOIN')
+        self.node1.shout("TEST", b"Hi")
+        msg = self.node2.recv()
+        self.assertEqual(b"SHOUT", msg[0])
+        self.assertEqual(self.node1.get_uuid().bytes, msg[1])
+        self.assertEqual(b"node1", msg[2])
+        self.assertEqual(b"TEST", msg[3])
+        self.assertEqual(b"Hi", msg[4])
+
+    def test_get_peer_name(self):
+        id1 = self.node1.get_uuid()
+        id2 = self.node2.get_uuid()
+
+        self.assertEqual(self.node1.get_peer_name(id2), "node2")
+        self.assertEqual(self.node2.get_peer_name(id1), "node1")
+
+    def test_get_socket(self):
+        s1 = self.node1.get_socket()
+        s2 = self.node2.get_socket()
+
+        assert s1 != s2
+
     def test_zfinal(self):
         global inst_count
         inst_count = 1
         self.assertTrue(True)
     # end test_zfinal
 # end PyreTest
+
 
 if __name__ == '__main__':
     inst_count = 0

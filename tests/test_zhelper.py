@@ -25,6 +25,16 @@ class ZHelperTest(unittest.TestCase):
         self.assertIn('127.0.0.1', addrs)
     # end test_get_ifaddrs_loopback
 
+    def test_zthread_fork(self):
+
+        def task(ctx, pipe):
+            pipe.recv()
+            pipe.send(b'goodbye')
+
+        pipe = zhelper.zthread_fork(zmq.Context(), task)
+        pipe.send(b'hello')
+        assert pipe.recv() == b'goodbye'
+
 # end ZHelperTest
 
 if __name__ == '__main__':

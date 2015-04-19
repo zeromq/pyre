@@ -459,9 +459,11 @@ class ZreMsg(object):
             self._put_long_string(val)
 
 if __name__ == '__main__':
+    pass
+
+"""
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
-    self._put_long_string("%s=%s" % (key, val))
 
     testdata = struct.pack('>Hb9sII2sI2sI2sbb4sIb1sI1sb1sI1s',
                            11,         # sequence
@@ -492,3 +494,4 @@ if __name__ == '__main__':
 
     logger.debug("Unpack the packed HELLO message")
     m.unpack_hello()
+"""
