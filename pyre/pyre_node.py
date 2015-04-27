@@ -126,7 +126,7 @@ class PyreNode(object):
             # Stop polling on inbox
             self.poller.unregister(self.inbox)
         self.outbox.send_unicode("STOP", zmq.SNDMORE)
-        self.outbox.send_unicode(self.identity.bytes, zmq.SNDMORE)
+        self.outbox.send(self.identity.bytes, zmq.SNDMORE)
         self.outbox.send_unicode(self.name)
 
     def bind(self, endpoint):
