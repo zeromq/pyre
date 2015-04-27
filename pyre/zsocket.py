@@ -48,7 +48,7 @@ class ZSocket(zmq.Socket):
     # Returns -1 if there was an error sending the signal.
     def signal(self, status=0):
         signal_value = 0x7766554433221100 + status
-        self.send(struct.pack("L", signal_value))
+        self.send(struct.pack("Q", signal_value))
 
     # --------------------------------------------------------------------------
     #  A signal is a message containing one frame with our 8-byte magic
@@ -58,7 +58,7 @@ class ZSocket(zmq.Socket):
         while(True):
             msg = self.recv()
             if len(msg) == 8:
-                signal_value = struct.unpack('L', msg)[0]
+                signal_value = struct.unpack('Q', msg)[0]
                 if (signal_value & 0xFFFFFFFFFFFFFF00) == 0x7766554433221100:
                     # return True or False based on the signal value send
                     return signal_value & 255
