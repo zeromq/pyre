@@ -1,16 +1,10 @@
 import zmq
-import time
-import struct
-import socket
 import uuid
 import logging
-import sys
 
 # local modules
-from . import zbeacon
 from . import zhelper
 from .zactor import ZActor
-from .zsocket import ZSocket
 from .pyre_node import PyreNode
 
 logger = logging.getLogger(__name__)
@@ -27,15 +21,6 @@ class Pyre(object):
 
         # Start node engine and wait for it to be ready
         self.actor = ZActor(self._ctx, PyreNode, self._outbox)
-        # Send name, if any, to node ending 
-        if (self.name):
-            self.actor.send_unicode("SET NAME", zmq.SNDMORE)
-            self.actor.send_unicode(self.name)
-
-    #def __del__(self):
-        # We need to explicitly destroy the actor 
-        # to make sure our node thread is stopped
-        #self.actor.destroy()
 
     # Return our node UUID, after successful initialization
     def get_uuid(self):
@@ -187,45 +172,3 @@ class Pyre(object):
     # Return node socket, for direct polling of socket
     def get_socket(self):
         return self.actor.resolve()
-
-# TODO: make a unittest or selftest
-
-def chat_task(ctx, pipe):
-    n = Pyre(ctx)
-    n.join("CHAT")
-
-    poller = zmq.Poller()
-    poller.register(pipe, zmq.POLLIN)
-    poller.register(n.get_socket(), zmq.POLLIN)
-    while(True):
-        items = dict(poller.poll())
-        if pipe in items and items[pipe] == zmq.POLLIN:
-            message = pipe.recv()
-            logger.debug("CHAT_TASK: {0}".format(message))
-            n.shout("CHAT", message)
-
-        if n.get_socket() in items and items[n.get_socket()] == zmq.POLLIN:
-            cmds = n.get_socket().recv_multipart()
-
-            type = cmds.pop(0)
-
-            logger.debug("NODE_MSG TYPE: {0}".format(type))
-            logger.debug("NODE_MSG PEER: {0}".format(uuid.UUID(bytes=cmds.pop(0))))
-
-            if type.decode('utf-8') == "SHOUT":
-                logger.debug("NODE_MSG GROUP: {0}".format(cmds.pop(0)))
-
-            logger.debug("NODE_MSG CONT: {0}".format(cmds))
-
-
-if __name__ == '__main__':
-    ctx = zmq.Context()
-    chat_pipe = zhelper.zthread_fork(ctx, chat_task)
-    while True:
-        try:
-            msg = input()
-            chat_pipe.send(msg.encode('utf_8'))
-        except (KeyboardInterrupt, SystemExit):
-            break
-
-    logger.debug("Exiting")

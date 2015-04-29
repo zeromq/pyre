@@ -53,14 +53,6 @@ class ZBeaconTest(unittest.TestCase):
         self.node1.send(self.transmit1)
         self.node2.send_unicode("PUBLISH", zmq.SNDMORE)
         self.node2.send(self.transmit2)
-        req = self.node1.recv_multipart()
-        self.assertEqual(self.transmit2, req[1])
-    
-    def test_recv_beacon1(self):
-        self.node1.send_unicode("PUBLISH", zmq.SNDMORE)
-        self.node1.send(self.transmit1)
-        self.node2.send_unicode("PUBLISH", zmq.SNDMORE)
-        self.node2.send(self.transmit2)
         req = self.node2.recv_multipart()
         self.assertEqual(self.transmit1, req[1])
 

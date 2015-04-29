@@ -6,9 +6,11 @@ python:
   - "3.4"
 
 install:
-  - pip install nose
+  - pip install nose coveralls
   - pip install .
 
 script: 
-    - pwd
-    - nosetests -v --exe
+    - nosetests -v --exe --with-cov --cover-package pyre
+
+after_success:
+    - coveralls
