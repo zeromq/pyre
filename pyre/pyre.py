@@ -20,17 +20,17 @@ class Pyre(object):
 
     def __init__(self, ctx=zmq.Context()):
         self._ctx = ctx
-        self.uuid = None
-        self.name = None
+        self._uuid = None
+        self._name = None
         self.verbose = False
         self.inbox, self._outbox = zhelper.zcreate_pipe(self._ctx)
 
         # Start node engine and wait for it to be ready
         self.actor = ZActor(self._ctx, PyreNode, self._outbox)
         # Send name, if any, to node ending 
-        if (self.name):
+        if (self._name):
             self.actor.send_unicode("SET NAME", zmq.SNDMORE)
-            self.actor.send_unicode(self.name)
+            self.actor.send_unicode(self._name)
 
     #def __del__(self):
         # We need to explicitly destroy the actor 
@@ -38,19 +38,20 @@ class Pyre(object):
         #self.actor.destroy()
 
     # Return our node UUID, after successful initialization
-    def get_uuid(self):
-        if not self.uuid:
+    def uuid(self):
+        if not self._uuid:
             self.actor.send_unicode("UUID")
-            self.uuid = uuid.UUID(bytes=self.actor.recv())
-        return self.uuid
+            self._uuid = uuid.UUID(bytes=self.actor.recv())
+        return self._uuid
 
     # Return our node name, after successful initialization
-    def get_name(self):
-        if not self.name:
+    def name(self):
+        if not self._name:
             self.actor.send_unicode("NAME")
-            self.name = self.actor.recv().decode('utf-8')
-        return self.name
+            self._name = self.actor.recv().decode('utf-8')
+        return self._name
 
+    # Not in Zyre api
     def set_name(self, name):
         self.actor.send_unicode("SET NAME", zmq.SNDMORE)
         self.actor.send_unicode(name)
@@ -64,22 +65,26 @@ class Pyre(object):
     def set_verbose(self):
         self.actor.send_unicode("SET VERBOSE")
 
-    def set_port(self, port):
+    def set_port(self, port_nbt):
         self.actor.send_unicode("SET PORT", zmq.SNDMORE)
-        self.actor.send(port)
+        self.actor.send(port_nbr)
 
     def set_interval(self, interval):
         self.actor.send_unicode("SET INTERVAL", zmq.SNDMORE)
         self.actor.send_unicode(interval)
 
-    def set_interface(self, iface):
+    def set_interface(self, value):
         logging.debug("set_interface not implemented")
 
-    def set_endpoint(self, endpoint):
+    # TODO: check args from zyre
+    def set_endpoint(self, format, *args):
         self.actor.send_unicode("SET ENDPOINT", zmq.SNDMORE)
-        self.actor.send_unicode(endpoint)
+        self.actor.send_unicode(format)
 
     # TODO: We haven't implemented gossiping yet
+    #def gossip_bind(self, format, *args):
+    #def gossip_connect(self, format, *args):
+
     def start(self):
         self.actor.send_unicode("START")
         # the backend will signal back
@@ -106,38 +111,39 @@ class Pyre(object):
         self.actor.send_unicode(group)
 
     # Send message to single peer; peer ID is first frame in message
-    def whisper(self, peer, msg):
+    def whisper(self, peer, msg_p):
         self.actor.send_unicode("WHISPER", flags=zmq.SNDMORE)
         self.actor.send(peer.bytes, flags=zmq.SNDMORE)
-        if isinstance(msg, list):
-            self.actor.send_multipart(msg)
+        if isinstance(msg_p, list):
+            self.actor.send_multipart(msg_p)
         else:
-            self.actor.send(msg)
+            self.actor.send(msg_p)
 
     # Send message to a group of peers
-    def shout(self, group, msg):
+    def shout(self, group, msg_p):
         self.actor.send_unicode("SHOUT", flags=zmq.SNDMORE)
         self.actor.send_unicode(group, flags=zmq.SNDMORE)
-        if isinstance(msg, list):
+        if isinstance(msg_p, list):
             self.actor.send_multipart(msg)
         else:
-            self.actor.send(msg)
+            self.actor.send(msg_p)
 
     # Send message to single peer; peer ID is first frame in message
-    def whispers(self, peer, msg):
+    # TODO: checks args from zyre
+    def whispers(self, peer, format, *args):
         self.actor.send_unicode("WHISPER", flags=zmq.SNDMORE)
         self.actor.send(peer.bytes, flags=zmq.SNDMORE)
-        self.actor.send_unicode(msg)
+        self.actor.send_unicode(format)
 
-    def shouts(self, group, msg):
+    def shouts(self, group, format, *args):
         self.actor.send_unicode("SHOUT", flags=zmq.SNDMORE)
         self.actor.send_unicode(group, flags=zmq.SNDMORE)
-        self.actor.send_unicode(msg)
+        self.actor.send_unicode(format)
 
     #  --------------------------------------------------------------------------
     #  Return list of current peers. The caller owns this list and should
     #  destroy it when finished with it.
-    def get_peers(self):
+    def peers(self):
         self.actor.send_unicode("PEERS")
         peers = self.actor.recv_pyobj()
         return peers
@@ -145,7 +151,9 @@ class Pyre(object):
     # --------------------------------------------------------------------------
     # Return the name of a connected peer. Caller owns the
     # string.
+    # DEPRECATED: This is dropped in Zyre api. You receive names through events
     def get_peer_name(self, peer):
+        logger.warning("get_peer_name() is deprecated, will be removed")
         self.actor.send_unicode("PEER NAME", zmq.SNDMORE)
         self.actor.send(peer.bytes)
         name = self.actor.recv_unicode()
@@ -154,7 +162,7 @@ class Pyre(object):
     # --------------------------------------------------------------------------
     # Return the endpoint of a connected peer. Caller owns the
     # string.
-    def get_peer_address(self, peer):
+    def peer_address(self, peer):
         self.actor.send_unicode("PEER ENDPOINT", zmq.SNDMORE)
         self.actor.send(peer.bytes)
         adr = self.actor.recv_unicode()
@@ -163,7 +171,7 @@ class Pyre(object):
     #  --------------------------------------------------------------------------
     #  Return the value of a header of a conected peer. 
     #  Returns null if peer or key doesn't exist.
-    def get_peer_header_value(self, peer, name):
+    def peer_header_value(self, peer, name):
         self.actor.send_unicode("PEER HEADER", zmq.SNDMORE)
         self.actor.send(peer.bytes, zmq.SNDMORE)
         self.actor.send_unicode(name)
@@ -172,23 +180,25 @@ class Pyre(object):
 
     #  --------------------------------------------------------------------------
     #  Return zlist of currently joined groups.
-    def get_own_groups(self):
+    def own_groups(self):
         self.actor.send_unicode("OWN GROUPS");
         groups = self.actor.recv_pyobj()
         return groups
 
     #  --------------------------------------------------------------------------
     #  Return zlist of groups known through connected peers. 
-    def get_peer_groups(self):
+    def peer_groups(self):
         self.actor.send_unicode("PEER GROUPS")
         groups = self.actor.recv_pyobj()
         return groups
 
     # Return node socket, for direct polling of socket
-    def get_socket(self):
-        return self.actor.resolve()
+    def socket(self):
+        return self.inbox
 
-# TODO: make a unittest or selftest
+    def version(self):
+        logger.warning("version() not implemented yet")
+
 
 def chat_task(ctx, pipe):
     n = Pyre(ctx)

@@ -32,32 +32,32 @@ class PyreTest(unittest.TestCase):
     # end tearDown
 
     def test_get_name(self):
-        self.assertEqual("node1", self.node1.get_name())
-        self.assertEqual("node2", self.node2.get_name())
+        self.assertEqual("node1", self.node1.name())
+        self.assertEqual("node2", self.node2.name())
     # end test_get_name
 
     def test_get_peers(self):
-        id1 = self.node1.get_uuid()
-        peers = self.node2.get_peers()
+        id1 = self.node1.uuid()
+        peers = self.node2.peers()
 
         self.assertIsInstance(peers, list)
         self.assertIn(id1, peers)
     # end test_get_peers
 
     def test_get_peer_address(self):
-        id1 = self.node1.get_uuid()
-        id2 = self.node2.get_uuid()
+        id1 = self.node1.uuid()
+        id2 = self.node2.uuid()
 
-        self.assertIsInstance(self.node1.get_peer_address(id2), unicode)
-        self.assertIsInstance(self.node2.get_peer_address(id1), unicode)
+        self.assertIsInstance(self.node1.peer_address(id2), unicode)
+        self.assertIsInstance(self.node2.peer_address(id1), unicode)
     # end test_get_peer_address
 
-    def test_get_peer_header_value(self):
-        id1 = self.node1.get_uuid()
-        id2 = self.node2.get_uuid()
+    def test_peer_header_value(self):
+        id1 = self.node1.uuid()
+        id2 = self.node2.uuid()
 
-        self.assertEqual("1", self.node1.get_peer_header_value(id2, "X-TEST"))
-        self.assertEqual("1", self.node2.get_peer_header_value(id1, "X-TEST"))
+        self.assertEqual("1", self.node1.peer_header_value(id2, "X-TEST"))
+        self.assertEqual("1", self.node2.peer_header_value(id1, "X-TEST"))
     # end test_get_peer_header_value
 
     def test_get_own_groups(self):
@@ -66,8 +66,8 @@ class PyreTest(unittest.TestCase):
         # pyre works asynchronous so give some time to let changes disperse
         time.sleep(0.5)
 
-        self.assertIn("TEST", self.node1.get_own_groups())
-        self.assertIn("TEST", self.node2.get_own_groups())
+        self.assertIn("TEST", self.node1.own_groups())
+        self.assertIn("TEST", self.node2.own_groups())
     # end test_get_own_groups
 
     def test_join_leave_msg(self):
@@ -95,8 +95,8 @@ class PyreTest(unittest.TestCase):
         # pyre works asynchronous so give some time to let changes disperse
         time.sleep(0.5)
 
-        self.assertIn("TEST", self.node1.get_peer_groups())
-        self.assertIn("TEST", self.node2.get_peer_groups())
+        self.assertIn("TEST", self.node1.peer_groups())
+        self.assertIn("TEST", self.node2.peer_groups())
     # end test_get_peer_groups
 
     def test_whispers(self):
@@ -104,10 +104,10 @@ class PyreTest(unittest.TestCase):
         self.assertEqual(msg[0], b'ENTER')
         msg = self.node2.recv()
         self.assertEqual(msg[0], b'ENTER')
-        self.node1.whispers(self.node2.get_uuid(), "Hi")
+        self.node1.whispers(self.node2.uuid(), "Hi")
         msg = self.node2.recv()
         self.assertEqual(b"WHISPER", msg[0])
-        self.assertEqual(self.node1.get_uuid().bytes, msg[1])
+        self.assertEqual(self.node1.uuid().bytes, msg[1])
         self.assertEqual(b"node1", msg[2])
         self.assertEqual(b"Hi", msg[3])
 
@@ -125,7 +125,7 @@ class PyreTest(unittest.TestCase):
         self.node1.shouts("TEST", "Hi")
         msg = self.node2.recv()
         self.assertEqual(b"SHOUT", msg[0])
-        self.assertEqual(self.node1.get_uuid().bytes, msg[1])
+        self.assertEqual(self.node1.uuid().bytes, msg[1])
         self.assertEqual(b"node1", msg[2])
         self.assertEqual(b"TEST", msg[3])
         self.assertEqual(b"Hi", msg[4])
