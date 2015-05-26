@@ -14,12 +14,10 @@ class PyreTest(unittest.TestCase):
     
     def setUp(self, *args, **kwargs):
         ctx = zmq.Context()
-        self.node1 = pyre.Pyre(ctx)
+        self.node1 = pyre.Pyre("node1", ctx=ctx)
         self.node1.set_header("X-TEST", "1")
-        self.node1.set_name("node1")
-        self.node2 = pyre.Pyre(ctx)
+        self.node2 = pyre.Pyre("node2", ctx=ctx)
         self.node2.set_header("X-TEST", "1")
-        self.node2.set_name("node2")
         self.node1.start()
         self.node2.start()
         # give time for nodes to exchange

@@ -30,7 +30,8 @@ class Pyre(object):
         Kwargs:
             ctx: PyZMQ Context, if not specified a new context will be created
         """
-        if kwargs.get('ctx') == None:
+        ctx = kwargs.get('ctx')
+        if ctx == None:
             ctx = zmq.Context()
         self._ctx = ctx
         self._uuid = None
