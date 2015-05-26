@@ -6,7 +6,7 @@ import logging
 import sys
 
 def chat_task(ctx, pipe):
-    n = Pyre(ctx)
+    n = Pyre(ctx=ctx)
     n.join("CHAT")
     n.start()
 

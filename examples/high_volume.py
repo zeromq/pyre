@@ -8,7 +8,7 @@ from pyre import zhelper
 
 
 def chat_task(ctx, pipe, ncmds):
-    n = Pyre(ctx)
+    n = Pyre(ctx=ctx)
     n.join("CHAT")
     n.start()
 
