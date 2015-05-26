@@ -18,14 +18,19 @@ logger = logging.getLogger(__name__)
 
 class Pyre(object):
 
-    def __init__(self, ctx=None, name=None):
-        """
-        Constructor, creates a new Zyre node. Note that until you start the
+    def __init__(self, name=None, **kwargs):
+        """Constructor, creates a new Zyre node. Note that until you start the
         node it is silent and invisible to other nodes on the network.
         The node name is provided to other nodes during discovery. If you
         specify NULL, Zyre generates a randomized node name from the UUID.
+
+        Args:
+            name (str): The name of the node
+
+        Kwargs:
+            ctx: PyZMQ Context, if not specified a new context will be created
         """
-        if ctx == None:
+        if kwargs.get('ctx') == None:
             ctx = zmq.Context()
         self._ctx = ctx
         self._uuid = None
