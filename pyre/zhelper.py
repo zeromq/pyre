@@ -75,6 +75,8 @@ from ctypes import c_void_p, pointer
 from ctypes import CDLL, Structure, Union
 
 from sys import platform
+if platform.startswith("win") and sys.version.startswith("2"):
+    import win_inet_pton
 from socket import AF_INET, AF_INET6, inet_ntop
 try:
     from socket import AF_PACKET
