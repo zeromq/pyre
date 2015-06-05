@@ -78,11 +78,12 @@ class PyrePeer(object):
     def send(self, msg):
         if self.connected:
             self.sent_sequence += 1
+            self.sent_sequence = self.sent_sequence % 65535
             msg.set_sequence(self.sent_sequence)
 
             try:
                 msg.send(self.mailbox)
-            except zmq.EAGAIN as e:
+            except zmq.AGAIN as e:
                 self.disconnect()
                 logger.debug("{0} Error while sending {1} to peer={2} sequence={3}".format(self.origin, 
                                                                             msg.get_command(), 
@@ -192,6 +193,7 @@ class PyrePeer(object):
             self.want_sequence = 1
         else:
             self.want_sequence += 1
+            self.want_sequence = self.want_sequence % 65535
 
         if self.want_sequence != msg.get_sequence():
             logger.debug("(%s) seq error from peer=%s expect=%d, got=%d",
