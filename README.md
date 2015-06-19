@@ -29,7 +29,8 @@ frames provide further values:
         a peer has sent one of our groups a message
 
 In SHOUT and WHISPER the message is a single frame in this version
-of Pyre. In ENTER, the headers frame contains a packed dictionary.
+of Pyre. In ENTER, the headers frame contains a packed dictionary, 
+that can be unpacked using json.loads(msg) (see chat client).
 
 To join or leave a group, use the join() and leave() methods.
 To set a header value, use the set_header() method. To send a message
@@ -104,11 +105,15 @@ For now use Pip:
     from pyre import zhelper
     import zmq
     import uuid
+    import json
 
 
     def chat_task(ctx, pipe):
-        n = Pyre(ctx)
+        n = Pyre("CHAT")
+        n.set_header("CHAT_Header1","example header1")
+	n.set_header("CHAT_Header2","example header2")
         n.join("CHAT")
+        n.start()
 
         poller = zmq.Poller()
         poller.register(pipe, zmq.POLLIN)
@@ -130,18 +135,20 @@ For now use Pip:
 
             if n.inbox in items and items[n.inbox] == zmq.POLLIN:
                 cmds = n.recv()
-                type = cmds.pop(0)
+                msg_type = cmds.pop(0)
 
                 peer_uuid_bytes = cmds.pop(0)
                 peer_uuid = uuid.UUID(bytes=peer_uuid_bytes)
 
-                print("NODE_MSG TYPE: {0}".format(type))
+                print("NODE_MSG TYPE: {0}".format(msg_type))
                 print("NODE_MSG PEER: {0}".format(peer_uuid))
 
                 if type.decode('utf-8') == "SHOUT":
                     group_name = cmds.pop(0)
                     print("NODE_MSG GROUP: {0}".format(group_name))
-
+                elif msg_type.decode('utf-8') == "ENTER":
+		    headers = json.loads(cmds.pop(0))
+		    print("NODE_MSG HEADERS: {0}".format(headers))
                 print("NODE_MSG CONT: {0}".format(cmds))
 
         n.stop()

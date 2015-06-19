@@ -396,7 +396,7 @@ class PyreNode(object):
             self.outbox.send_unicode("ENTER", flags=zmq.SNDMORE)
             self.outbox.send(peer.get_identity().bytes, flags=zmq.SNDMORE)
             self.outbox.send_unicode(peer.get_name(), flags=zmq.SNDMORE)
-            # TODO send headers???
+            self.outbox.send_json(peer.get_headers(),flags=zmq.SNDMORE)
             self.outbox.send_unicode(peer.get_endpoint())
             logger.debug("({0}) ENTER name={1} endpoint={2}".format(self.name, peer.get_name(), peer.get_endpoint()))
 
