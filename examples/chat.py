@@ -9,9 +9,12 @@ import zmq
 import uuid
 import logging
 import sys
+import json
 
 def chat_task(ctx, pipe):
     n = Pyre("CHAT")
+    n.set_header("CHAT_Header1","example header1")
+    n.set_header("CHAT_Header2","example header2")
     n.join("CHAT")
     n.start()
 
@@ -35,12 +38,17 @@ def chat_task(ctx, pipe):
             print("HMMM")
             cmds = n.recv()
             print("HMMM",cmds)
-            type = cmds.pop(0)
-            print("NODE_MSG TYPE: %s" % type)
+            msg_type = cmds.pop(0)
+            print("NODE_MSG TYPE: %s" % msg_type)
             print("NODE_MSG PEER: %s" % uuid.UUID(bytes=cmds.pop(0)))
             print("NODE_MSG NAME: %s" % cmds.pop(0))
-            if type.decode('utf-8') == "SHOUT":
+            if msg_type.decode('utf-8') == "SHOUT":
                 print("NODE_MSG GROUP: %s" % cmds.pop(0))
+            elif msg_type.decode('utf-8') == "ENTER":
+		headers = json.loads(cmds.pop(0))
+		print("NODE_MSG HEADERS: %s" % headers)
+		for key in headers:
+		    print("key = {0}, value = {1}".format(key, headers[key]))
             print("NODE_MSG CONT: %s" % cmds)
     n.stop()
 
