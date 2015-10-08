@@ -32,7 +32,7 @@ def chat_task(ctx, pipe):
             if message.decode('utf-8') == "$$STOP":
                 break
             print("CHAT_TASK: %s" % message)
-            n.shouts("CHAT", message)
+            n.shouts("CHAT", message.decode('utf-8'))
         else:
         #if n.socket() in items and items[n.socket()] == zmq.POLLIN:
             print("HMMM")
@@ -45,10 +45,10 @@ def chat_task(ctx, pipe):
             if msg_type.decode('utf-8') == "SHOUT":
                 print("NODE_MSG GROUP: %s" % cmds.pop(0))
             elif msg_type.decode('utf-8') == "ENTER":
-		headers = json.loads(cmds.pop(0))
-		print("NODE_MSG HEADERS: %s" % headers)
-		for key in headers:
-		    print("key = {0}, value = {1}".format(key, headers[key]))
+                headers = json.loads(cmds.pop(0).decode('utf-8'))
+                print("NODE_MSG HEADERS: %s" % headers)
+                for key in headers:
+                    print("key = {0}, value = {1}".format(key, headers[key]))
             print("NODE_MSG CONT: %s" % cmds)
     n.stop()
 
