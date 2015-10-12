@@ -11,6 +11,10 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+.. automodule:: pyre
+   :members:
+.. autoclass:: Pyre
+   :members:
 
 
 Indices and tables

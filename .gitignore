@@ -37,3 +37,8 @@ nosetests.xml
 
 # Editor swap files
 *.swp
+
+# sphinx dirs
+_build
+_static
+_templates

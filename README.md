@@ -176,7 +176,7 @@ Look at the [ZOCP](https://github.com/z25/pyZOCP) project for examples of how Py
 integrated into different environments and frameworks, i.e.:
 - [Urwid](https://github.com/z25/pyZOCP/blob/master/examples/urwZOCP.py)
 - [Blender](https://github.com/z25/pyZOCP/blob/master/examples/BpyZOCP.py)
-- Glib
+- [Glib](https://github.com/z25/pyZOCP/blob/master/examples/glib_node.py)
 - [QT](https://github.com/z25/pyZOCP/blob/master/examples/qt_ui_node.py)
 
 
@@ -195,7 +195,7 @@ To change the debug level:
 
 ## Requirements
 
-Python only needs the libzmq. On some older versions of Python 
+Python only needs PyZMQ. On some older versions of Python 
 it also needs the [ipaddress](https://docs.python.org/3.4/library/ipaddress.html?highlight=ipaddress#module-ipaddress) module.
 
 The recommended Python version is 3.3+
