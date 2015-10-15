@@ -13,7 +13,7 @@ def chat_task(ctx, pipe, ncmds):
     n.start()
 
     # wait for someone else to join the chat
-    while not n.get_peer_groups():
+    while not n.peer_groups():
         pass
 
     pipe.send('ready'.encode('utf-8'))
