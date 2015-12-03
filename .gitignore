@@ -42,3 +42,6 @@ nosetests.xml
 _build
 _static
 _templates
+
+# Pycharm
+.idea/

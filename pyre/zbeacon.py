@@ -169,6 +169,10 @@ class ZBeacon(object):
                     logger.debug("Interface {0} is a loopback device.".format(name))
                     continue
 
+                if interface.is_link_local:
+                    logger.debug("Interface {0} is a link-local device.".format(name))
+                    continue
+
                 self.address = interface.ip
                 self.network_address = interface.network.network_address
                 self.broadcast_address = interface.network.broadcast_address
