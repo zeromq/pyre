@@ -128,6 +128,25 @@ class PyreTest(unittest.TestCase):
         self.assertEqual(b"TEST", msg[3])
         self.assertEqual(b"Hi", msg[4])
 
+    def test_shout(self):
+        msg = self.node1.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        msg = self.node2.recv()
+        self.assertEqual(msg[0], b'ENTER')
+        self.node1.join("TEST")
+        self.node2.join("TEST")
+        msg = self.node1.recv()
+        self.assertEqual(msg[0], b'JOIN')
+        msg = self.node2.recv()
+        self.assertEqual(msg[0], b'JOIN')
+        self.node1.shout("TEST", b"Hi")
+        msg = self.node2.recv()
+        self.assertEqual(b"SHOUT", msg[0])
+        self.assertEqual(self.node1.uuid().bytes, msg[1])
+        self.assertEqual(b"node1", msg[2])
+        self.assertEqual(b"TEST", msg[3])
+        self.assertEqual(b"Hi", msg[4])
+
     def test_zfinal(self):
         global inst_count
         inst_count = 1

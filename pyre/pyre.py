@@ -181,7 +181,7 @@ class Pyre(object):
         self.actor.send_unicode("SHOUT", flags=zmq.SNDMORE)
         self.actor.send_unicode(group, flags=zmq.SNDMORE)
         if isinstance(msg_p, list):
-            self.actor.send_multipart(msg)
+            self.actor.send_multipart(msg_p)
         else:
             self.actor.send(msg_p)
 
