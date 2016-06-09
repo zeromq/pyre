@@ -93,7 +93,7 @@ class Pyre(object):
         all major events."""
         self.actor.send_unicode("SET VERBOSE")
 
-    def set_port(self, port_nbt):
+    def set_port(self, port_nbr):
         """Set UDP beacon discovery port; defaults to 5670, this call overrides 
         that so you can create independent clusters on the same network, for 
         e.g. development vs. production. Has no effect after zyre_start()."""
