@@ -15,7 +15,8 @@ Contents:
    :members:
 .. autoclass:: Pyre
    :members:
-
+.. autoclass:: PyreEvent
+   :members:
 
 Indices and tables
 ==================
