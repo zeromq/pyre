@@ -85,15 +85,15 @@ class PyrePeer(object):
                 msg.send(self.mailbox)
             except zmq.AGAIN as e:
                 self.disconnect()
-                logger.debug("{0} Error while sending {1} to peer={2} sequence={3}".format(self.origin, 
-                                                                            msg.get_command(), 
-                                                                            self.name, 
+                logger.debug("{0} Error while sending {1} to peer={2} sequence={3}".format(self.origin,
+                                                                            msg.get_command(),
+                                                                            self.name,
                                                                             msg.get_sequence()))
                 return -1
 
-            logger.debug("{0} send {1} to peer={2} sequence={3}".format(self.origin, 
-                msg.get_command(), 
-                self.name, 
+            logger.debug("{0} send {1} to peer={2} sequence={3}".format(self.origin,
+                msg.get_command(),
+                self.name,
                 msg.get_sequence()))
 
         else:
@@ -184,11 +184,11 @@ class PyrePeer(object):
     def messages_lost(self, msg):
         # The sequence number set by the peer, and our own calculated
         # sequence number should be the same.
-        logger.debug("(%s) recv %s from peer=%s sequence=%d",
+        logger.debug("(%s) recv %s from peer=%s sequence=%d"%(
             self.origin,
             msg.get_command(),
             self.name,
-            msg.get_sequence());
+            msg.get_sequence()) )
         if msg.get_command == "HELLO":
             self.want_sequence = 1
         else:
