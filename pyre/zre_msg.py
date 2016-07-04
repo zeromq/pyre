@@ -70,10 +70,13 @@ class ZreMsg(object):
         frames = input_socket.recv_multipart()
         if input_socket.socket_type == zmq.ROUTER:
             self.address = frames.pop(0)
+            print self.address[1:]
             # we drop the first byte: TODO ref!
-            self.address = uuid.UUID(bytes=self.address[1:])
-            if not self.address:
+            try:
+                self.address = uuid.UUID(bytes=self.address[1:])
+            except ValueError:
                 logger.debug("Peer identity frame empty or malformed")
+                return None
 
         # Read and parse command in frame
         self.struct_data = frames.pop(0)
@@ -268,24 +271,24 @@ class ZreMsg(object):
 
     def get_name(self):
         return self.name
-    
+
     def set_name(self, name):
         self.name = name
-    
+
     # Get/set the sequence field
     def get_sequence(self):
         return self.sequence
 
     def set_sequence(self, sequence):
         self.sequence = sequence
-    
+
     # Get/set the endpoint field
     def get_endpoint(self):
         return self.endpoint
-    
+
     def set_endpoint(self, endpoint):
         self.endpoint = endpoint
-        
+
     # Get/set the ipaddress field
     def get_ipaddress(self):
         return self.ipaddress
