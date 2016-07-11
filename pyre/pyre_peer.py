@@ -47,7 +47,7 @@ class PyrePeer(object):
         # enforces.
         # we set linger to 0 by default (In zyre this is done by czmq's zsys)
         self.mailbox.setsockopt(zmq.LINGER, 0)
-        self.mailbox.setsockopt(zmq.IDENTITY, chr(1) + reply_to.bytes)
+        self.mailbox.setsockopt(zmq.IDENTITY, b'\x01' + reply_to.bytes)
         # Set a high-water mark that allows for reasonable activity
         self.mailbox.setsockopt(zmq.SNDHWM, PyrePeer.PEER_EXPIRED * 100)
         # Send messages immediately or return EAGAIN
