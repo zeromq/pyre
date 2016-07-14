@@ -16,7 +16,7 @@ ZRE_DISCOVERY_PORT = 5670
 REAP_INTERVAL = 1.0  # Once per second
 
 logger = logging.getLogger(__name__)
- 
+
 class PyreNode(object):
 
     def __init__(self, ctx, pipe, outbox, *args, **kwargs):
@@ -108,8 +108,8 @@ class PyreNode(object):
     def stop(self):
         logger.debug("Pyre node: stopping beacon")
         if self.beacon:
-            stop_transmit = struct.pack('cccb16sH', b'Z',b'R',b'E', 
-                                   BEACON_VERSION, self.identity.bytes, 
+            stop_transmit = struct.pack('cccb16sH', b'Z',b'R',b'E',
+                                   BEACON_VERSION, self.identity.bytes,
                                    socket.htons(0))
             self.beacon.send_unicode("PUBLISH", zmq.SNDMORE)
             self.beacon.send(stop_transmit)
@@ -257,6 +257,13 @@ class PyreNode(object):
                 self._pipe.send_unicode("")
             else:
                 self._pipe.send_unicode(peer.get_header(key))
+        elif command == "PEER HEADERS":
+            id = uuid.UUID(bytes=request.pop(0))
+            peer = self.peers.get(id)
+            if not peer:
+                self._pipe.send_unicode("")
+            else:
+                self._pipe.send_pyobj(peer.get_headers())
         elif command == "PEER GROUPS":
             self._pipe.send_pyobj(list(self.peer_groups.keys()))
         elif command == "OWN GROUPS":
@@ -435,7 +442,7 @@ class PyreNode(object):
         try:
             ipaddress, frame = self.beacon_socket.recv_multipart()
         except ValueError:
-            return 
+            return
 
         beacon = struct.unpack('cccb16sH', frame)
         # Ignore anything that isn't a valid beacon
@@ -487,7 +494,7 @@ class PyreNode(object):
     # This is the actor that runs a single node; it uses one thread, creates
     # a zyre_node object at start and destroys that when finishing.
     def run(self):
-        
+
         # Signal actor successfully initialized
         self._pipe.signal()
         reap_at = time.time() + REAP_INTERVAL
