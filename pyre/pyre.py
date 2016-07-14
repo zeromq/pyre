@@ -42,13 +42,13 @@ class Pyre(object):
 
         # Start node engine and wait for it to be ready
         self.actor = ZActor(self._ctx, PyreNode, self._outbox)
-        # Send name, if any, to node backend 
+        # Send name, if any, to node backend
         if (self._name):
             self.actor.send_unicode("SET NAME", zmq.SNDMORE)
             self.actor.send_unicode(self._name)
 
     #def __del__(self):
-        # We need to explicitly destroy the actor 
+        # We need to explicitly destroy the actor
         # to make sure our node thread is stopped
         #self.actor.destroy()
 
@@ -89,13 +89,13 @@ class Pyre(object):
         self.actor.send_unicode(value)
 
     def set_verbose(self):
-        """Set verbose mode; this tells the node to log all traffic as well as 
+        """Set verbose mode; this tells the node to log all traffic as well as
         all major events."""
         self.actor.send_unicode("SET VERBOSE")
 
     def set_port(self, port_nbr):
-        """Set UDP beacon discovery port; defaults to 5670, this call overrides 
-        that so you can create independent clusters on the same network, for 
+        """Set UDP beacon discovery port; defaults to 5670, this call overrides
+        that so you can create independent clusters on the same network, for
         e.g. development vs. production. Has no effect after zyre_start()."""
         self.actor.send_unicode("SET PORT", zmq.SNDMORE)
         self.actor.send(port_nbr)
@@ -223,13 +223,21 @@ class Pyre(object):
         return adr
 
     def peer_header_value(self, peer, name):
-        """Return the value of a header of a conected peer. 
+        """Return the value of a header of a conected peer.
         Returns null if peer or key doesn't exist."""
         self.actor.send_unicode("PEER HEADER", zmq.SNDMORE)
         self.actor.send(peer.bytes, zmq.SNDMORE)
         self.actor.send_unicode(name)
         value = self.actor.recv_unicode()
         return value
+
+    def peer_headers(self, peer):
+        """Return the value of a header of a conected peer.
+        Returns null if peer or key doesn't exist."""
+        self.actor.send_unicode("PEER HEADERS", zmq.SNDMORE)
+        self.actor.send(peer.bytes)
+        headers = self.actor.recv_pyobj()
+        return headers
 
     def own_groups(self):
         """Return list of currently joined groups."""
