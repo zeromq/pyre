@@ -59,3 +59,6 @@ class PyreEvent(object):
             TYPE: uuid.UUID
         """
         return uuid.UUID(bytes=self.peer_uuid_bytes)
+
+    def __str__(self):
+        return '<%s %s from %s>'%(__name__, self.type, self.peer_uuid.hex)

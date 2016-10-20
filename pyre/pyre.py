@@ -204,6 +204,11 @@ class Pyre(object):
         peers = self.actor.recv_pyobj()
         return peers
 
+    def endpoint(self):
+        self.actor.send_unicode("ENDPOINT")
+        endpoint = self.actor.recv_unicode()
+        return endpoint
+
     # --------------------------------------------------------------------------
     # Return the name of a connected peer. Caller owns the
     # string.
