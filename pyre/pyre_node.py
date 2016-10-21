@@ -235,6 +235,8 @@ class PyreNode(object):
                 logger.debug("Node is leaving group {0}".format(grpname))
         elif command == "PEERS":
             self._pipe.send_pyobj(list(self.peers.keys()))
+        elif command == "ENDPOINT":
+            self._pipe.send_unicode(self.endpoint)
         elif command == "PEER NAME":
             id = uuid.UUID(bytes=request.pop(0))
             peer = self.peers.get(id)
