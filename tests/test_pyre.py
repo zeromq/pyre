@@ -11,7 +11,7 @@ if sys.version.startswith('3'):
 
 
 class PyreTest(unittest.TestCase):
-    
+
     def setUp(self, *args, **kwargs):
         ctx = zmq.Context()
         self.node1 = pyre.Pyre("node1", ctx=ctx)

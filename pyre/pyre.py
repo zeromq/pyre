@@ -210,10 +210,16 @@ class Pyre(object):
         endpoint = self.actor.recv_unicode()
         return endpoint
 
-    def events(self):
+    def recent_events(self):
+        """Iterator that yields recent `PyreEvent`s"""
         while self.socket().get(zmq.EVENTS) & zmq.POLLIN:
             yield PyreEvent(self)
         raise StopIteration()
+
+    def events(self):
+        """Iterator that yields `PyreEvent`s indefinitely"""
+        while True:
+            yield PyreEvent(self)
 
     # --------------------------------------------------------------------------
     # Return the name of a connected peer. Caller owns the
