@@ -12,6 +12,7 @@ from . import zhelper
 from .zactor import ZActor
 from .zsocket import ZSocket
 from .pyre_node import PyreNode
+from .pyre_event import PyreEvent
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +209,11 @@ class Pyre(object):
         self.actor.send_unicode("ENDPOINT")
         endpoint = self.actor.recv_unicode()
         return endpoint
+
+    def events(self):
+        while self.socket().get(zmq.EVENTS) & zmq.POLLIN:
+            yield PyreEvent(self)
+        raise StopIteration()
 
     # --------------------------------------------------------------------------
     # Return the name of a connected peer. Caller owns the
