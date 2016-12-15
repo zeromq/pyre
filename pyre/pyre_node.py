@@ -4,6 +4,7 @@ import logging
 import struct
 import socket
 import time
+import sys
 from .zactor import ZActor
 from .zbeacon import ZBeacon
 from .zre_msg import ZreMsg
@@ -235,6 +236,10 @@ class PyreNode(object):
                 logger.debug("Node is leaving group {0}".format(grpname))
         elif command == "PEERS":
             self._pipe.send_pyobj(list(self.peers.keys()))
+        elif command == "PEERS BY GROUP":
+            grpname = request.pop(0).decode('UTF-8')
+            grp = self.require_peer_group(grpname)
+            self._pipe.send_pyobj(list(grp.peers.keys()))
         elif command == "ENDPOINT":
             self._pipe.send_unicode(self.endpoint)
         elif command == "PEER NAME":

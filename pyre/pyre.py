@@ -205,7 +205,15 @@ class Pyre(object):
         peers = self.actor.recv_pyobj()
         return peers
 
+    def peers_by_group(self, group):
+        """Return list of current peer ids."""
+        self.actor.send_unicode("PEERS BY GROUP", flags=zmq.SNDMORE)
+        self.actor.send_unicode(group)
+        peers_by_group = self.actor.recv_pyobj()
+        return peers_by_group
+
     def endpoint(self):
+        """Return own endpoint"""
         self.actor.send_unicode("ENDPOINT")
         endpoint = self.actor.recv_unicode()
         return endpoint
