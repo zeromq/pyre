@@ -83,7 +83,7 @@ class PyrePeer(object):
 
             try:
                 msg.send(self.mailbox)
-            except zmq.AGAIN as e:
+            except zmq.Again as e:
                 self.disconnect()
                 logger.debug("{0} Error while sending {1} to peer={2} sequence={3}".format(self.origin,
                                                                             msg.get_command(),
