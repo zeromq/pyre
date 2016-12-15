@@ -11,7 +11,6 @@ if sys.version.startswith('3'):
 
 
 class PyreTest(unittest.TestCase):
-    
     def setUp(self, *args, **kwargs):
         ctx = zmq.Context()
         self.node1 = pyre.Pyre("node1", ctx=ctx)
@@ -37,6 +36,19 @@ class PyreTest(unittest.TestCase):
     def test_get_peers(self):
         id1 = self.node1.uuid()
         peers = self.node2.peers()
+
+        self.assertIsInstance(peers, list)
+        self.assertIn(id1, peers)
+    # end test_get_peers
+
+    def test_get_peers_by_group(self):
+        id1 = self.node1.uuid()
+        self.node1.join("TEST")
+        # pyre works asynchronous so give some time to let changes disperse
+        time.sleep(0.5)
+
+        peers = self.node2.peers_by_group("TEST")
+        self.node1.leave("TEST")
 
         self.assertIsInstance(peers, list)
         self.assertIn(id1, peers)
