@@ -263,7 +263,7 @@ class ZBeacon(object):
         try:
             self.udpsock.sendto(self.transmit, (str(self.broadcast_address),
                                                 self.port_nbr))
-        except OSError:
+        except (OSError, socket.error):
             logger.debug("Network seems gone, exiting zbeacon")
             self.terminated = True
 
@@ -291,9 +291,6 @@ class ZBeacon(object):
             if self.transmit and time.time() >= self.ping_at:
                 self.send_beacon()
                 self.ping_at = time.time() + self.interval
-
-            if self.terminated:
-                break
 
 
 if __name__ == '__main__':

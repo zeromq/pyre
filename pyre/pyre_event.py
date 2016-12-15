@@ -14,11 +14,7 @@ class PyreEvent(object):
             node (Pyre): Pyre node
         """
         super(PyreEvent, self).__init__()
-        try:
-            incoming = node.recv()
-        except zmq.ZMQError:
-            # recv failed.
-            return None
+        incoming = node.recv()
 
         self.type = incoming.pop(0).decode('utf-8')
         self.peer_uuid_bytes = incoming.pop(0)
