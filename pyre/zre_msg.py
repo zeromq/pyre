@@ -107,13 +107,13 @@ class ZreMsg(object):
         elif self.id == ZreMsg.WHISPER:
             self.sequence = self._get_number2()
             if len(frames):
-                self.content = frames.pop(0)
+                self.content = frames
 
         elif self.id == ZreMsg.SHOUT:
             self.sequence = self._get_number2()
             self.group = self._get_string()
             if len(frames):
-                self.content = frames.pop(0)
+                self.content = frames
 
         elif self.id == ZreMsg.JOIN:
             self.sequence = self._get_number2()

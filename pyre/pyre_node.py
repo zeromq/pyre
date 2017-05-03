@@ -193,7 +193,7 @@ class PyreNode(object):
             grpname = request.pop(0).decode('UTF-8')
             msg = ZreMsg(ZreMsg.SHOUT)
             msg.set_group(grpname)
-            msg.content = request.pop(0)
+            msg.content = request  # request may contain multipart message
 
             if self.peer_groups.get(grpname):
                 self.peer_groups[grpname].send(msg)
@@ -424,14 +424,14 @@ class PyreNode(object):
             self.outbox.send_unicode("WHISPER", zmq.SNDMORE)
             self.outbox.send(peer.get_identity().bytes, zmq.SNDMORE)
             self.outbox.send_unicode(peer.get_name(), zmq.SNDMORE)
-            self.outbox.send(zmsg.content)
+            self.outbox.send_multipart(zmsg.content)
         elif zmsg.id == ZreMsg.SHOUT:
             # Pass up to caller API as WHISPER event
             self.outbox.send_unicode("SHOUT", zmq.SNDMORE)
             self.outbox.send(peer.get_identity().bytes, zmq.SNDMORE)
             self.outbox.send_unicode(peer.get_name(), zmq.SNDMORE)
             self.outbox.send_unicode(zmsg.get_group(), zmq.SNDMORE)
-            self.outbox.send(zmsg.content)
+            self.outbox.send_multipart(zmsg.content)
         elif zmsg.id == ZreMsg.PING:
             peer.send(ZreMsg(id=ZreMsg.PING_OK))
         elif zmsg.id == ZreMsg.JOIN:

@@ -5,7 +5,7 @@ except ImportError:
 
 setup(
         name='pyre',
-        version='0.3',
+        version='0.3.1',
         description='Python ZRE implementation',
         author='Arnaud Loonstra',
         author_email='arnaud@sphaero.org',
