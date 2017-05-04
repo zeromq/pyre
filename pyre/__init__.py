@@ -1,5 +1,7 @@
-__version__ = '0.3.1'
 __all__ = ['pyre', 'zbeacon', 'zhelper']
+
+with open('VERSION') as version_file:
+    __version__ = version_file.read().strip()
 
 from .pyre import Pyre
 from .pyre_event import PyreEvent
