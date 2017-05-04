@@ -3,9 +3,12 @@ try:
 except ImportError:
     from distutils.core import setup
 
+with open('VERSION') as version_file:
+    version = version_file.read().strip()
+
 setup(
         name='pyre',
-        version='0.3.1',
+        version=version,
         description='Python ZRE implementation',
         author='Arnaud Loonstra',
         author_email='arnaud@sphaero.org',

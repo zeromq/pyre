@@ -7,6 +7,7 @@ import logging
 import sys
 
 # local modules
+from . import __version__
 from . import zbeacon
 from . import zhelper
 from .zactor import ZActor
@@ -283,8 +284,7 @@ class Pyre(object):
 
     @staticmethod
     def version():
-        logger.warning("version() not implemented yet")
-        #return (major, minor, patch)
+        return __version__.split('.')
 
 def chat_task(ctx, pipe):
     n = Pyre(ctx=ctx)
