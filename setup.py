@@ -15,6 +15,7 @@ setup(
         author_email='arnaud@sphaero.org',
         url='http://www.github.com/zeromq/pyre/',
         packages=['pyre'],
+        package_data={'': ['VERSION']},
         include_package_data=True,
         requires=['pyzmq', 'ipaddress'],
         install_requires=['pyzmq', 'ipaddress'],
