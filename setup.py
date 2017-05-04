@@ -3,7 +3,8 @@ try:
 except ImportError:
     from distutils.core import setup
 
-with open('VERSION') as version_file:
+from os.path import join
+with open(join('pyre', 'VERSION')) as version_file:
     version = version_file.read().strip()
 
 setup(
