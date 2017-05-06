@@ -7,7 +7,7 @@ import logging
 import sys
 
 # local modules
-from . import __version__
+from . import __version_info__
 from . import zbeacon
 from . import zhelper
 from .zactor import ZActor
@@ -284,7 +284,7 @@ class Pyre(object):
 
     @staticmethod
     def version():
-        return __version__.split('.')
+        return __version_info__
 
 def chat_task(ctx, pipe):
     n = Pyre(ctx=ctx)
