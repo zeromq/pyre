@@ -17,6 +17,11 @@ from .pyre_event import PyreEvent
 
 logger = logging.getLogger(__name__)
 
+try:
+    raw_input          # Python 2
+except NameError:
+    raw_input = input  # Python 3
+
 
 class Pyre(object):
 
