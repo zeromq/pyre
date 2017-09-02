@@ -2,14 +2,19 @@ try:
     from zyre_pyzmq import Zyre as Pyre
 except Exception as e:
     print("using Python native module", e)
-    from pyre import Pyre 
+    from pyre import Pyre
 
-from pyre import zhelper 
-import zmq 
-import uuid
+from pyre import zhelper
+import zmq
+import json
 import logging
 import sys
-import json
+import uuid
+
+try:
+    raw_input          # Python 2
+except:
+    raw_input = input  # Python 3
 
 def chat_task(ctx, pipe):
     n = Pyre("CHAT")
@@ -62,13 +67,10 @@ if __name__ == '__main__':
 
     ctx = zmq.Context()
     chat_pipe = zhelper.zthread_fork(ctx, chat_task)
-    # input in python 2 is different
-    if sys.version_info.major < 3:
-        input = raw_input
 
     while True:
         try:
-            msg = input()
+            msg = raw_input()
             chat_pipe.send(msg.encode('utf_8'))
         except (KeyboardInterrupt, SystemExit):
             break
