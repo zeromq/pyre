@@ -13,7 +13,7 @@ import uuid
 
 try:
     raw_input          # Python 2
-except:
+except NameException:
     raw_input = input  # Python 3
 
 def chat_task(ctx, pipe):
