@@ -463,7 +463,7 @@ class ZreMsg(object):
 if __name__ == '__main__':
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
-    self._put_long_string("%s=%s" % (key, val))
+    # self._put_long_string("%s=%s" % (key, val))  # undefined: self, key, val
 
     testdata = struct.pack('>Hb9sII2sI2sI2sbb4sIb1sI1sb1sI1s',
                            11,         # sequence
