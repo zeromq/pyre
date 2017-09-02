@@ -1,18 +1,11 @@
 language: python
 python:
   - "2.7"
-  - "3.3"
   - "3.4"
   - "3.5"
   - "3.6"
 
-matrix:
-  include:
-  - python: 3.2
-    env: PYVER="3.2"
-
 install:
-  - if [[ $PYVER == "3.2" ]]; then pip install -U "virtualenv<14.0.0" "pip<8.0.0" "setuptools<30.0.0"; fi
   - pip install nose
   - pip install .
 
