@@ -1,16 +1,17 @@
-import random
-import zmq
-import threading
+
 import binascii
 import os
+import random
 import sys
+import threading
+import zmq
 from . import zsocket
 
-
-if sys.version.startswith('3'):
-    u = str
-else:
+try:
     u = unicode
+except NameError:
+    u = str
+
 
 # --------------------------------------------------------------------------
 # Create a pipe, which consists of two PAIR sockets connected over inproc.
