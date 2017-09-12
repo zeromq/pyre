@@ -57,7 +57,7 @@ def zthread_fork(ctx, func, *args, **kwargs):
     b.setsockopt(zmq.RCVHWM, 100)
     b.setsockopt(zmq.SNDHWM, 100)
     b.setsockopt(zmq.SNDTIMEO, 5000)
-    a.setsockopt(zmq.RCVTIMEO, 5000)
+    b.setsockopt(zmq.RCVTIMEO, 5000)
     iface = "inproc://%s" % binascii.hexlify(os.urandom(8))
     a.bind(iface)
     b.connect(iface)
