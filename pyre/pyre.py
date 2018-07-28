@@ -228,7 +228,6 @@ class Pyre(object):
         """Iterator that yields recent `PyreEvent`s"""
         while self.socket().get(zmq.EVENTS) & zmq.POLLIN:
             yield PyreEvent(self)
-        raise StopIteration()
 
     def events(self):
         """Iterator that yields `PyreEvent`s indefinitely"""
