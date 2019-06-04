@@ -343,8 +343,8 @@ class ZreMsg(object):
         return s[0].decode('UTF-8')
 
     def _get_number1(self):
-        num = struct.unpack_from('>b', self.struct_data, offset=self._needle)
-        self._needle += struct.calcsize('>b')
+        num = struct.unpack_from('>B', self.struct_data, offset=self._needle)
+        self._needle += struct.calcsize('>B')
         return num[0]
 
     def _get_number2(self):
@@ -374,7 +374,7 @@ class ZreMsg(object):
         self.struct_data += d
 
     def _put_number1(self, nr):
-        d = struct.pack('>b', nr)
+        d = struct.pack('>B', nr)
         self.struct_data += d
 
     def _put_number2(self, nr):
