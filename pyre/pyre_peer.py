@@ -153,7 +153,7 @@ class PyrePeer(object):
 
     # Set peer status
     def set_status(self, status):
-        self.status = status
+        self.status = status & 0xFF
     # end set_status
 
     # Return peer ready state
