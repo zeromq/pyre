@@ -109,13 +109,14 @@ class PyreNode(object):
     def stop(self):
         logger.debug("Pyre node: stopping beacon")
         if self.beacon:
-            stop_transmit = struct.pack('cccb16sH', b'Z',b'R',b'E',
-                                   BEACON_VERSION, self.identity.bytes,
-                                   socket.htons(0))
-            self.beacon.send_unicode("PUBLISH", zmq.SNDMORE)
-            self.beacon.send(stop_transmit)
-            # Give time for beacon to go out
-            time.sleep(0.001)
+            if self.beacon.is_running:
+                stop_transmit = struct.pack('cccb16sH', b'Z',b'R',b'E',
+                                       BEACON_VERSION, self.identity.bytes,
+                                       socket.htons(0))
+                self.beacon.send_unicode("PUBLISH", zmq.SNDMORE)
+                self.beacon.send(stop_transmit)
+                # Give time for beacon to go out
+                time.sleep(0.001)
             self.poller.unregister(self.beacon_socket)
             self.beacon.destroy()
             self.beacon = None
