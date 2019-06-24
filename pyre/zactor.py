@@ -70,10 +70,13 @@ class ZActor(object):
         if self.tag == 0xDeadBeef:
             logger.warning("Zactor: already destroyed")
             return
-        self.pipe.set(zmq.SNDTIMEO, 0)
-        self.pipe.send_unicode("$TERM")
-        # misschien self.pipe.wait()????
-        self.pipe.wait()
+        try:
+            self.pipe.set(zmq.SNDTIMEO, 0)
+            self.pipe.send_unicode("$TERM")
+            # misschien self.pipe.wait()????
+            self.pipe.wait()
+        except zmq.error.Again:
+            pass
         self.pipe.close()
         self.tag = 0xDeadBeef;
 
