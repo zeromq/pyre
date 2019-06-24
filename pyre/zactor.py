@@ -43,6 +43,7 @@ class ZActor(object):
         self.shim_handler = actor
         self.shim_args = (self.ctx, self.shim_pipe)+args
         self.shim_kwargs = kwargs
+        self.is_running = False
         self.thread = threading.Thread(target=self.run)
         # we manage threads exiting ourselves!
         self.thread.daemon = False
@@ -54,10 +55,12 @@ class ZActor(object):
         self.pipe.wait()
 
     def run(self):
+        self.is_running = True
         self.shim_handler(*self.shim_args, **self.shim_kwargs)
         self.shim_pipe.set(zmq.SNDTIMEO, 0)
         self.shim_pipe.signal()
         self.shim_pipe.close()
+        self.is_running = False
 
     def destroy(self):
         # Signal the actor to end and wait for the thread exit code
