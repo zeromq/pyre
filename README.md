@@ -1,7 +1,7 @@
 Pyre
 ====
 
-This is a Python port of [Zyre](zyre.org) 1.0, implementing the same [ZRE protocol](http://rfc.zeromq.org/spec:36).
+This is a Python port of [Zyre](http://zyre.org) 1.0, implementing the same [ZRE protocol](http://rfc.zeromq.org/spec:36).
 
 # Pyre - an open-source framework for proximity-based peer-to-peer applications
 
