@@ -40,9 +40,7 @@ def chat_task(ctx, pipe):
             n.shouts("CHAT", message.decode('utf-8'))
         else:
         #if n.socket() in items and items[n.socket()] == zmq.POLLIN:
-            print("HMMM")
             cmds = n.recv()
-            print("HMMM",cmds)
             msg_type = cmds.pop(0)
             print("NODE_MSG TYPE: %s" % msg_type)
             print("NODE_MSG PEER: %s" % uuid.UUID(bytes=cmds.pop(0)))
