@@ -266,7 +266,10 @@ class ZBeacon(object):
             
         except OSError as e:
         # network down, just wait, it could come back up again.
-            if e.errno == 50: pass
+        # socket call errors 50 and 51 relate to the network being
+        # down or unreachable, the recommended action to take is to 
+        # try again so we don't terminate in these cases.
+            if e.errno in [50, 51]: pass
             # all other cases, we'll terminate
             else:
                 logger.debug("Network seems gone, exiting zbeacon")
