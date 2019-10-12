@@ -263,7 +263,15 @@ class ZBeacon(object):
         try:
             self.udpsock.sendto(self.transmit, (str(self.broadcast_address),
                                                 self.port_nbr))
-        except (OSError, socket.error):
+            
+        except OSError as e:
+        # network down, just wait, it could come back up again.
+            if e.errno == 50: pass
+            # all other cases, we'll terminate
+            else:
+                logger.debug("Network seems gone, exiting zbeacon")
+                self.terminated = True
+        except socket.error:
             logger.debug("Network seems gone, exiting zbeacon")
             self.terminated = True
 
