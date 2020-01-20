@@ -68,7 +68,7 @@ class ZreMsg(object):
     def recv(self, input_socket):
         # If we're reading from a ROUTER socket, get address
         frames = input_socket.recv_multipart()
-        if input_socket.socket_type == zmq.ROUTER:
+        if input_socket.type == zmq.ROUTER:
             self.address = frames.pop(0)
             # we drop the first byte: TODO ref!
             try:
@@ -181,7 +181,7 @@ class ZreMsg(object):
             logger.debug("Message type {0} unknown".format(self.id))
 
         # If we're sending to a ROUTER, we send the address first
-        if output_socket.socket_type == zmq.ROUTER:
+        if output_socket.type == zmq.ROUTER:
             output_socket.send(self.address.bytes, zmq.SNDMORE)
         # Now send the data frame
         if (self.content):
