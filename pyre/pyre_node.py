@@ -289,6 +289,7 @@ class PyreNode(object):
 
     def purge_peer(self, peer, endpoint):
         if (peer.get_endpoint() == endpoint):
+            self.remove_peer(peer)
             peer.disconnect()
             logger.debug("Purge peer: {0}{1}".format(peer,endpoint))
 
