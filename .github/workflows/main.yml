@@ -51,7 +51,7 @@ jobs:
         pip install dist/zeromq-pyre-*.tar.gz
     - name: Test with nose
       working-directory: tests
-      run: nose -v --exe
+      run: python -m nose -v --exe
 
   publish:
     runs-on: ubuntu-latest
