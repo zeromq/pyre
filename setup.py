@@ -27,7 +27,7 @@ def find_version(*file_paths):
 
 
 setup(
-        name='pyre',
+        name='zeromq-pyre',
         version=find_version('pyre', '__init__.py'),
         description='Python ZRE implementation',
         author='Arnaud Loonstra',
