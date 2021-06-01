@@ -8,7 +8,7 @@ import pyre
 # The test needs the device name of the active network interface.
 # The device name can be found under `DEVICE` column after running `nmcli c`.
 # The device name should be set to the variable bellow, or as the `DEVICE` env variable.
-NMCLI_DEVICE: str = None
+NMCLI_DEVICE = None
 
 NMCLI_LINETERMINATOR = "\n"
 NMCLI_DELIMITER = "  "
@@ -17,30 +17,38 @@ NMCLI_DELIMITER = "  "
 logger = logging.getLogger(__name__)
 
 
-def _network_device() -> str:
+def _network_device():
     return NMCLI_DEVICE or os.environ.get("DEVICE", None)
 
 
-def _network_device_is_enabled(device: str) -> bool:
-    result = subprocess.run(["nmcli", "c"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def _network_device_is_enabled(device):
+    result = subprocess.run(
+        ["nmcli", "c"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     assert result.returncode == 0, result.stderr.decode("ascii")
     output = result.stdout.decode("ascii")
-    rows = [[val.strip() for val in row.split(NMCLI_DELIMITER)  if val.strip()] for row in output.split(NMCLI_LINETERMINATOR) if row.strip()]
+    rows = [
+        [val.strip() for val in row.split(NMCLI_DELIMITER) if val.strip()]
+        for row in output.split(NMCLI_LINETERMINATOR)
+        if row.strip()
+    ]
     head, rows = rows[0], rows[1:]
     devices = [dict(zip(head, row)) for row in rows]
     return any(d["DEVICE"] == device for d in devices)
 
 
-def _network_device_enable(device: str, enable: bool):
+def _network_device_enable(device, enable):
     if _network_device_is_enabled(device) == enable:
         return
-    cmd = 'connect' if enable else 'disconnect'
-    result = subprocess.run(["nmcli", "d", cmd, f"{device}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    cmd = "connect" if enable else "disconnect"
+    result = subprocess.run(
+        ["nmcli", "d", cmd, str(device)], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     assert result.returncode == 0, result.stderr.decode("ascii")
     time.sleep(3)
     while _network_device_is_enabled(device) != enable:
         pass
-    logger.debug("Device \"{device}\" was {cmd}ed")
+    logger.debug('Device "{device}" was {cmd}ed')
 
 
 def test_network_disconnect(group="best-group"):
@@ -48,7 +56,9 @@ def test_network_disconnect(group="best-group"):
     device = _network_device()
 
     if device is None:
-        logger.warn("Skipping test. Please specify an active network interface to use for testing.")
+        logger.warn(
+            "Skipping test. Please specify an active network interface to use for testing."
+        )
         return
 
     _network_device_enable(device, enable=True)
@@ -77,5 +87,6 @@ def test_network_disconnect(group="best-group"):
         _network_device_enable(device, enable=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    logging.basicConfig()
     test_network_disconnect()
