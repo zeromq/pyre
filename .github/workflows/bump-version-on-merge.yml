@@ -1,0 +1,21 @@
+name: Bump version on pull request merge to master
+on:
+  pull_request:
+    branches: [master]
+    # types: [closed]
+
+jobs:
+  bump_version:
+    # if: github.event.pull_request.merged == true
+    name: Bump version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
+        run: echo "$GITHUB_CONTEXT"      # - uses: actions/checkout@v2
+      # - uses: actions/setup-python@v1
+      #   with:
+      #     python-version: 3.7
+      # - name: Install bump2version
+      #   run: pip install bump2version
