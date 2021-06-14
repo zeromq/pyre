@@ -1,0 +1,162 @@
+name: Deploy to PyPI
+on:
+  pull_request:
+    branches: [master]
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      version_part:
+        description: >
+          Version part to bump before deployment.
+          Possible options {none, major, minor, patch}
+        required: true
+        default: 'patch'
+
+jobs:
+  get_version_part_manually:
+    name: Bump version on manual workflow dispatch
+    if: github.event.inputs.version_part
+    runs-on: ubuntu-latest
+    env:
+      VERSION_PART: ${{ github.event.inputs.version_part }}
+    outputs:
+      # will be empty if validation fails
+      version_part: ${{ steps.validated_input.outputs.version_part }}
+    steps:
+      - name: Cancel on invalid input
+        if: >
+          !(
+            env.VERSION_PART == 'none' ||
+            env.VERSION_PART == 'major' ||
+            env.VERSION_PART == 'minor' ||
+            env.VERSION_PART == 'patch'
+          )
+        run: |
+          echo "::error:: \`$VERSION_PART\` is not a valid version part. Must be one of {none, major, minor, patch}"
+          exit 1
+      - name: Set version part based on manual input
+        id: validated_input
+        run: echo "::set-output name=version_part::$VERSION_PART"
+
+  get_version_part_on_pr_merge:
+    name: Bump version on pull reuqest merge
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      version_part: ${{ join(steps.*.outputs.version_part, '') }}
+    steps:
+      - name: Cancel on bump:none
+        id: bump_none
+        if: contains(github.event.pull_request.labels.*.name, 'bump:none')
+        run: echo "::set-output name=version_part::none"
+      - name: Bump major
+        id: bump_major
+        if: >
+          steps.bump_none.conclusion == 'skipped' &&
+          contains(github.event.pull_request.labels.*.name, 'bump:major')
+        run: echo "::set-output name=version_part::major"
+      - name: Bump minor
+        id: bump_minor
+        if: >
+          steps.bump_none.conclusion == 'skipped' &&
+          steps.bump_major.conclusion == 'skipped' &&
+          contains(github.event.pull_request.labels.*.name, 'bump:minor')
+        run: echo "::set-output name=version_part::minor"
+      - name: Bump patch
+        id: bump_patch
+        if: >
+          steps.bump_none.conclusion == 'skipped' &&
+          steps.bump_major.conclusion == 'skipped' &&
+          steps.bump_minor.conclusion == 'skipped'
+        run: echo "::set-output name=version_part::patch"
+
+  bump_version:
+    name: Bump version
+    needs: [get_version_part_on_pr_merge, get_version_part_manually]
+    # always() needed to not automatically skip this job due to one of the
+    # get_version_part_* jobs being skipped and bump_version depending on both.
+    if: >
+      always() &&
+      (
+        needs.get_version_part_on_pr_merge.result == 'success' ||
+        needs.get_version_part_manually.result == 'success'
+      ) &&
+      join(needs.*.outputs.version_part, '') != 'none'
+    env: 
+      VERSION_PART: ${{ join(needs.*.outputs.version_part, '') }}
+    outputs:
+      bumped_version_sha: >
+        ${{ steps.save_bumped_version_sha.outputs.bumped_version_sha || github.sha }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Install bump2version
+        run: pip install bump2version
+      - uses: oleksiyrudenko/gha-git-credentials@v2-latest
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Bump version
+        run: bump2version --verbose "$VERSION_PART"
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          tags: true
+          branch: ${{ github.ref }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Save new git commit SHA to job output
+        id: save_bumped_version_sha
+        run: |
+          echo "Setting bumped_version_sha=$(git rev-parse HEAD)"
+          echo "::set-output name=bumped_version_sha::$(git rev-parse HEAD)"
+
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    needs: [bump_version]
+    # always() needed to not automatically skip this job due to one of the
+    # get_version_part_* jobs being skipped and bump_version depending on both.
+    if: >
+      always() &&
+      (
+        needs.bump_version.result == 'success' ||
+        needs.bump_version.result == 'skipped'
+      )
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ needs.bump_version.outputs.bumped_version_sha }}
+      - uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Build source package
+        run: |
+          pip install build
+          python -m build --sdist .
+      - name: Upload source package
+        uses: actions/upload-artifact@v2
+        with:
+          name: distribution
+          path: dist/
+
+  publish:
+    name: Deploy to PyPI
+    runs-on: ubuntu-latest
+    needs: [build_sdist]
+    # always() needed to not automatically skip this job due to one of the
+    # get_version_part_* jobs being skipped and bump_version depending on both.
+    if: always() && needs.build_sdist.result == 'success'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download source package
+        uses: actions/download-artifact@v2
+        with:
+          name: distribution
+          path: dist/
+      - name: Deploy to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}

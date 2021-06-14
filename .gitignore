@@ -9,6 +9,7 @@
 # Packages
 *.egg
 *.egg-info
+*.whl
 dist
 build
 eggs
@@ -46,5 +47,6 @@ _build
 _static
 _templates
 
-# Pycharm
+# IDEs
 .idea/
+.vscode/

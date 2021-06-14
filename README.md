@@ -213,3 +213,5 @@ project licensed under the LGPLv3. To contribute to Zyre please read the
 [C4.1 process](http://rfc.zeromq.org/spec:22) that we use.
 
 To report an issue, use the [PYRE issue tracker](https://github.com/zeromq/pyre/issues) at github.com.
+
+For more information on this project's maintenance, see [`MAINTENANCE.md`](MAINTENANCE.md).
