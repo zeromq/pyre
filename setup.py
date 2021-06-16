@@ -5,7 +5,7 @@ except ImportError:
 
 setup(
         name='zeromq-pyre',
-        version='0.3.2',
+        version='0.3.3',
         description='Python ZRE implementation',
         author='Arnaud Loonstra',
         author_email='arnaud@sphaero.org',
