@@ -105,7 +105,7 @@ jobs:
         with:
           tags: true
           branch: ${{ github.ref }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       - name: Save new git commit SHA to job output
         id: save_bumped_version_sha
         run: |
