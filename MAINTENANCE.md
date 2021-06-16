@@ -41,8 +41,12 @@ To avoid human error, it is recommended to use the
 the `deploy` extra requirements. To manually bump the version, run `bump2version <part>`,
 where `<part>` is either `major`, `minor`, or `patch`.
 
-**Note:** It is **not** recommended to run this tool manually. Instead, this step hasbeen automated
-as part of the ["Deploy to PyPI" Github Action](.github/workflows/deploy.yml). See below for details.
+**Note:** It is **not** recommended to run this tool manually. Instead, this step has
+been automated as part of the ["Deploy to PyPI" Github Action](.github/workflows/deploy.yml).
+To push the version-bumped commit back to the repo, the action requires more permissions
+than the [default `GITHUB_TOKEN` provides](https://github.com/zeromq/pyre/pull/155#issuecomment-861020168). 
+Instead, it [requires a personal access token](https://docs.github.com/en/actions/reference/authentication-in-a-workflow#granting-additional-permissions)
+(PAT; stored and accessed as the `PERSONAL_ACCESS_TOKEN` secret). See below for further details.
 
 ### Building a distribution
 
