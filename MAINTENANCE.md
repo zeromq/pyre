@@ -3,8 +3,9 @@
 Maintenance is based on extra tools that are defined as [optional dependencies](https://setuptools.readthedocs.io/en/latest/userguide/dependency_management.html#optional-dependencies) in [`setup.py`](setup.py).
 The sections below refer to them as "extra requirements".
 
-To automate maintenance as much as possible, this repository features two Github Actions:
+To automate maintenance as much as possible, this repository features three Github Actions:
 1. [Test on push or pull request](.github/workflows/test.yml) - see [Testing](#testing)
+1. [Bump version](.github/workflows/bump_version.yml) - see [Deployment](#deployment)
 1. [Deploy to PyPI](.github/workflows/deploy.yml) - see [Deployment](#deployment)
 
 ## Testing
@@ -28,8 +29,8 @@ triggers on:
 Deployment works by bumping the version, building a source distribution (`sdist`), and
 uploading it to [PyPI](https://pypi.org/project/zeromq-pyre/) using [`twine`](https://twine.readthedocs.io/).
 
-These steps are automated as part of the ["Deploy to PyPI" Github Action](.github/workflows/deploy.yml).
-See below for details.
+These steps are automated as part of the ["Bump version"](.github/workflows/bump_version.yml) and ["Deploy to PyPI"](.github/workflows/deploy.yml)
+Github Actions. See below for details.
 
 ### Versioning
 
@@ -41,12 +42,18 @@ To avoid human error, it is recommended to use the
 the `deploy` extra requirements. To manually bump the version, run `bump2version <part>`,
 where `<part>` is either `major`, `minor`, or `patch`.
 
-**Note:** It is **not** recommended to run this tool manually. Instead, this step has
-been automated as part of the ["Deploy to PyPI" Github Action](.github/workflows/deploy.yml).
+**Note 1:** It is **not** recommended to run this tool manually. Instead, this step has
+been automated as part of the ["Bump version" Github Action](.github/workflows/bump_version.yml).
 To push the version-bumped commit back to the repo, the action requires more permissions
 than the [default `GITHUB_TOKEN` provides](https://github.com/zeromq/pyre/pull/155#issuecomment-861020168). 
 Instead, it [requires a personal access token](https://docs.github.com/en/actions/reference/authentication-in-a-workflow#granting-additional-permissions)
-(PAT; stored and accessed as the `PERSONAL_ACCESS_TOKEN` secret). See below for further details.
+(PAT; stored and accessed as the `PERSONAL_ACCESS_TOKEN` secret). This allows writing
+to the repository and triggering the ["Deploy to PyPI" Github Action](.github/workflows/deploy.yml).
+
+**Note 2:** Due to security restrictions, pull requests from forked repositories do not
+have access to the workflow's secret. As a result, the "Bump version" workflow will fail
+and not trigger a deployment. In these cases, the deployment needs to be triggered by
+manually dispatching the workflow or pushing a tagged commit.
 
 ### Building a distribution
 
@@ -69,8 +76,7 @@ package installer (`pip`)](https://pypi.org/project/pip/) is the easiest way for
 to install the project. It also allows other projects to easily define this project as
 a dependency.
 
-When triggered, the ["Deploy to PyPI" Github Action](.github/workflows/deploy.yml) bumps
-the version, builds a source distribution, and deploys it to PyPI. See [Github Action usage](#github-action-usage)
+When triggered, the ["Deploy to PyPI" Github Action](.github/workflows/deploy.yml) builds a source distribution, and deploys it to PyPI. See [Github Action usage](#github-action-usage)
 below for information when the Github Action is triggered and how to control the version
 part that will be bumped.
 
@@ -83,10 +89,13 @@ as an API token.
 
 ### Github Action usage
 
-The ["Deploy to PyPI" Github Action](.github/workflows/deploy.yml) triggers on:
-- merged pull requests
-- commits being pushed to the `master` branch
-- manual dispatch via [Github UI](https://github.com/zeromq/pyre/actions/workflows/deploy.yml)
+The [Bump version](.github/workflows/bump_version.yml) Github Action triggers on:
+- Merged pull requests to the `master` branch
+- [Manual workflow dispatch](https://github.com/zeromq/pyre/actions/workflows/bump_version.yml)
+
+
+The ["Deploy to PyPI"](.github/workflows/deploy.yml) Github Action triggers on:
+- tags being pushed to the repository, including version bumps created by the [Bump version](.github/workflows/bump_version.yml) Github Action
 
 There are four version part values for automatic version bumping: `none`, `major`,
 `minor`, `patch` (default).  For pull requests, you can assign one of the `bump:*`
