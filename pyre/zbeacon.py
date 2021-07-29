@@ -70,7 +70,11 @@ class ZBeacon(object):
             self.udpsock.close()
 
     def prepare_udp(self):
-        self._prepare_socket()
+        try:
+            self._prepare_socket()
+        except ValueError:
+            logger.exception("Error preparing socket:")
+            return
         try:
             self.udpsock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             self.udpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
