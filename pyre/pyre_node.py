@@ -27,6 +27,7 @@ class PyreNode(object):
         self.outbox = outbox                        # Outbox back to application
         self._terminated = False                    # API shut us down
         self._verbose = False                       # Log all traffic (logging module?)
+        self.interface_name = None                  # Network interface
         self.beacon_port = ZRE_DISCOVERY_PORT       # Beacon port number
         self.interval = 0                           # Beacon interval 0=default
         self.beacon = None                          # Beacon actor
@@ -67,6 +68,9 @@ class PyreNode(object):
             if self._verbose:
                 self.beacon.send_unicode("VERBOSE")
 
+            if self.interface_name:
+                self.beacon.send_unicode("SET INTERFACE", zmq.SNDMORE)
+                self.beacon.send_unicode(self.interface_name)
 
             # Our hostname is provided by zbeacon
             self.beacon.send_unicode("CONFIGURE", zmq.SNDMORE)
@@ -160,6 +164,8 @@ class PyreNode(object):
             self.beacon_port = int(request.pop(0))
         elif command == "SET INTERVAL":
             self.interval = int(request.pop(0))
+        elif command == "SET INTERFACE":
+            self.interface_name = request.pop(0).decode()
         #elif command == "SET ENDPOINT":
             # TODO: gossip start and endpoint setting
         # TODO: GOSSIP BIND, GOSSIP CONNECT
