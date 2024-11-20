@@ -25,6 +25,8 @@
 import logging
 import ipaddress
 import socket
+from urllib.parse import quote_plus
+
 import zmq
 import struct
 import time
@@ -137,57 +139,91 @@ class ZBeacon(object):
         except socket.error:
             logger.exception("Initializing of {0} raised an exception".format(self.__class__.__name__))
 
-    def _prepare_socket(self):
-        netinf = zhelper.get_ifaddrs()
+    def _try_interface(self, name, data, data_2):
+        if not data_2:
+            logger.debug("No data_2 found for interface {0}.".format(name))
+            return False
 
+        address_str = data_2.get("addr")
+        netmask_str = data_2.get("netmask")
+
+        if not address_str or not netmask_str:
+            logger.debug("Address or netmask not found for interface {0}.".format(name))
+            return False
+
+        if isinstance(address_str, bytes):
+            address_str = address_str.decode("utf8")
+
+        if isinstance(netmask_str, bytes):
+            netmask_str = netmask_str.decode("utf8")
+
+        interface_string = "{0}/{1}".format(address_str, netmask_str)
+
+        interface = ipaddress.ip_interface(u(interface_string))
+
+        if interface.is_loopback:
+            logger.debug("Interface {0} is a loopback device.".format(name))
+            return False
+
+        if interface.is_link_local:
+            logger.debug("Interface {0} is a link-local device.".format(name))
+            return False
+
+    def _prepare_socket(self):
+
+        netinf = zhelper.get_ifaddrs()
         logger.debug("Available interfaces: {0}".format(netinf))
 
-        for iface in netinf:
-            # Loop over the interfaces and their settings to try to find the broadcast address.
-            # ipv4 only currently and needs a valid broadcast address
-            for name, data in iface.items():
-                logger.debug("Checking out interface {0}.".format(name))
-                # For some reason the data we need lives in the "2" section of the interface.
-                data_2 = data.get(2)
+        if self.interface_name:
+            for iface in netinf:
+                for name, data in iface.items():
+                    if name != self.interface_name:
+                        continue
+                    data_2 = data.get(2)
 
-                if not data_2:
-                    logger.debug("No data_2 found for interface {0}.".format(name))
-                    continue
+                    if not data_2:
+                        logger.debug("No data_2 found for interface {0}.".format(name))
+                        break
+                    if self._try_interface(name, data, data_2):
+                        address_str = data_2.get("addr")
+                        netmask_str = data_2.get("netmask")
+                        interface_string = "{0}/{1}".format(address_str, netmask_str)
+                        interface = ipaddress.ip_interface(u(interface_string))
 
-                address_str = data_2.get("addr")
-                netmask_str = data_2.get("netmask")
+                        self.address = interface.ip
+                        self.network_address = interface.network.network_address
+                        self.broadcast_address = interface.network.broadcast_address
+                        self.interface_name = name
 
-                if not address_str or not netmask_str:
-                    logger.debug("Address or netmask not found for interface {0}.".format(name))
-                    continue
 
-                if isinstance(address_str, bytes):
-                    address_str = address_str.decode("utf8")
+        if not self.address:
+            for iface in netinf:
+                # Loop over the interfaces and their settings to try to find the broadcast address.
+                # ipv4 only currently and needs a valid broadcast address
+                for name, data in iface.items():
+                    logger.debug("Checking out interface {0}.".format(name))
+                    # For some reason the data we need lives in the "2" section of the interface.
+                    data_2 = data.get(2)
 
-                if isinstance(netmask_str, bytes):
-                    netmask_str = netmask_str.decode("utf8")
+                    if not data_2:
+                        logger.debug("No data_2 found for interface {0}.".format(name))
+                        continue
 
-                interface_string = "{0}/{1}".format(address_str, netmask_str)
+                    if self._try_interface(name, data, data_2):
+                        address_str = data_2.get("addr")
+                        netmask_str = data_2.get("netmask")
+                        interface_string = "{0}/{1}".format(address_str, netmask_str)
+                        interface = ipaddress.ip_interface(u(interface_string))
 
-                interface = ipaddress.ip_interface(u(interface_string))
+                        self.address = interface.ip
+                        self.network_address = interface.network.network_address
+                        self.broadcast_address = interface.network.broadcast_address
+                        self.interface_name = name
 
-                if interface.is_loopback:
-                    logger.debug("Interface {0} is a loopback device.".format(name))
-                    continue
+                if self.address:
+                    break
 
-                if interface.is_link_local:
-                    logger.debug("Interface {0} is a link-local device.".format(name))
-                    continue
-
-                self.address = interface.ip
-                self.network_address = interface.network.network_address
-                self.broadcast_address = interface.network.broadcast_address
-                self.interface_name = name
-
-            if self.address:
-                break
-
-        logger.debug("Finished scanning interfaces.")
+            logger.debug("Finished scanning interfaces.")
 
         if not self.address:
             self.network_address = ipaddress.IPv4Address(u('127.0.0.1'))
@@ -217,6 +253,8 @@ class ZBeacon(object):
 
         if command == "VERBOSE":
             self.verbose = True
+        elif command == "SET INTERFACE":
+            self.interface_name = request.pop(0).decode()
         elif command == "CONFIGURE":
             port = struct.unpack('I', request.pop(0))[0]
             self.configure(port)

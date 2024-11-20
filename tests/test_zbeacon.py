@@ -10,7 +10,6 @@ from pyre.zbeacon import ZBeacon
 class ZBeaconTest(unittest.TestCase):    
     def setUp(self, *args, **kwargs):
         ctx = zmq.Context()
-        ctx = zmq.Context()
         # two beacon frames
         self.transmit1 = struct.pack('cccb16sH', b'Z', b'R', b'E',
                            1, uuid.uuid4().bytes,
@@ -60,6 +59,13 @@ class ZBeaconTest(unittest.TestCase):
         self.node2.send(self.transmit2)
         req = self.node2.recv_multipart()
         self.assertEqual(self.transmit1, req[1])
+
+    def test_select_interface(self):
+        ctx = zmq.Context()
+        interface_selector = ZActor(ctx, ZBeacon)
+        interface_selector.send_unicode("VERBOSE")
+        interface_selector.send_unicode("SET INTERFACE", zmq.SNDMORE)
+        interface_selector.send_unicode("lo")
 
 # end ZBeaconTest
 
