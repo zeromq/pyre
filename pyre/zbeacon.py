@@ -169,12 +169,15 @@ class ZBeacon(object):
             logger.debug("Interface {0} is a link-local device.".format(name))
             return False
 
+        return True
+
     def _prepare_socket(self):
 
         netinf = zhelper.get_ifaddrs()
         logger.debug("Available interfaces: {0}".format(netinf))
 
         if self.interface_name:
+            logger.debug("Trying selected interface {0}".format(self.interface_name))
             for iface in netinf:
                 for name, data in iface.items():
                     if name != self.interface_name:
@@ -194,7 +197,7 @@ class ZBeacon(object):
                         self.network_address = interface.network.network_address
                         self.broadcast_address = interface.network.broadcast_address
                         self.interface_name = name
-
+            logger.debug("Could not use the selected interface")
 
         if not self.address:
             for iface in netinf:
