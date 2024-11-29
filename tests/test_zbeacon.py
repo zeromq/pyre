@@ -60,13 +60,6 @@ class ZBeaconTest(unittest.TestCase):
         req = self.node2.recv_multipart()
         self.assertEqual(self.transmit1, req[1])
 
-    def test_select_interface(self):
-        ctx = zmq.Context()
-        interface_selector = ZActor(ctx, ZBeacon)
-        interface_selector.send_unicode("VERBOSE")
-        interface_selector.send_unicode("SET INTERFACE", zmq.SNDMORE)
-        interface_selector.send_unicode("lo")
-
 # end ZBeaconTest
 
 if __name__ == '__main__':

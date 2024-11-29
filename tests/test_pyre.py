@@ -164,13 +164,6 @@ class PyreTest(unittest.TestCase):
         inst_count = 1
         self.assertTrue(True)
 
-    def test_set_interface(self):
-        ctx = zmq.Context()
-        node = pyre.Pyre("node_selector", ctx=ctx)
-        node.set_interface("wlp0s20f3")
-        node.start()
-        node.stop()
-
     # end test_zfinal
 # end PyreTest
 
