@@ -1,4 +1,3 @@
-
 # ======================================================================
 #  zbeacon - LAN discovery and presence
 #
@@ -25,8 +24,6 @@
 import logging
 import ipaddress
 import socket
-from urllib.parse import quote_plus
-
 import zmq
 import struct
 import time
@@ -38,28 +35,28 @@ from .zhelper import u
 logger = logging.getLogger(__name__)
 
 INTERVAL_DFLT = 1.0
-BEACON_MAX = 255      # Max size of beacon data
+BEACON_MAX = 255  # Max size of beacon data
 MULTICAST_GRP = '225.25.25.25'
-ENETDOWN = 50   #socket error, network is down
-ENETUNREACH = 51 #socket error, network unreachable
+ENETDOWN = 50  # socket error, network is down
+ENETUNREACH = 51  # socket error, network unreachable
 
 
 class ZBeacon(object):
 
     def __init__(self, ctx, pipe, *args, **kwargs):
-        self.ctx = ctx                #  ZMQ context
-        self.pipe = pipe              #  Actor command pipe
+        self.ctx = ctx  # ZMQ context
+        self.pipe = pipe  # Actor command pipe
         self.udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-                                      #  UDP socket for send/recv
-        self.port_nbr = 0             #  UDP port number we work on
-        self.interval = INTERVAL_DFLT #  Beacon broadcast interval
-        self.ping_at = 0              #  Next broadcast time
-        self.transmit = None          #  Beacon transmit data
-        self.filter = b""             #  Beacon filter data
+        #  UDP socket for send/recv
+        self.port_nbr = 0  # UDP port number we work on
+        self.interval = INTERVAL_DFLT  # Beacon broadcast interval
+        self.ping_at = 0  # Next broadcast time
+        self.transmit = None  # Beacon transmit data
+        self.filter = b""  # Beacon filter data
 
-        self.terminated = False       #  Did caller ask us to quit?
-        self.verbose = False          #  Verbose logging enabled?
-        self.hostname = ""            #  Saved host name
+        self.terminated = False  # Did caller ask us to quit?
+        self.verbose = False  # Verbose logging enabled?
+        self.hostname = ""  # Saved host name
 
         self.address = None
         self.network_address = None
@@ -139,93 +136,77 @@ class ZBeacon(object):
         except socket.error:
             logger.exception("Initializing of {0} raised an exception".format(self.__class__.__name__))
 
-    def _try_interface(self, name, data, data_2):
-        if not data_2:
-            logger.debug("No data_2 found for interface {0}.".format(name))
-            return False
+    def _try_interface(self, iface):
 
-        address_str = data_2.get("addr")
-        netmask_str = data_2.get("netmask")
+        for name, data in iface.items():
+            logger.debug("Checking out interface {0}.".format(name))
+            # For some reason the data we need lives in the "2" section of the interface.
+            data_2 = data.get(2)
 
-        if not address_str or not netmask_str:
-            logger.debug("Address or netmask not found for interface {0}.".format(name))
-            return False
+            if not data_2:
+                logger.debug("No data_2 found for interface {0}.".format(name))
+                return
 
-        if isinstance(address_str, bytes):
-            address_str = address_str.decode("utf8")
+            address_str = data_2.get("addr")
+            netmask_str = data_2.get("netmask")
 
-        if isinstance(netmask_str, bytes):
-            netmask_str = netmask_str.decode("utf8")
+            if not address_str or not netmask_str:
+                logger.debug("Address or netmask not found for interface {0}.".format(name))
+                return
 
-        interface_string = "{0}/{1}".format(address_str, netmask_str)
+            if isinstance(address_str, bytes):
+                address_str = address_str.decode("utf8")
 
-        interface = ipaddress.ip_interface(u(interface_string))
+            if isinstance(netmask_str, bytes):
+                netmask_str = netmask_str.decode("utf8")
 
-        if interface.is_loopback:
-            logger.debug("Interface {0} is a loopback device.".format(name))
-            return False
+            interface_string = "{0}/{1}".format(address_str, netmask_str)
 
-        if interface.is_link_local:
-            logger.debug("Interface {0} is a link-local device.".format(name))
-            return False
+            interface = ipaddress.ip_interface(u(interface_string))
 
-        return True
+            if interface.is_loopback:
+                logger.debug("Interface {0} is a loopback device.".format(name))
+                return
+
+            if interface.is_link_local:
+                logger.debug("Interface {0} is a link-local device.".format(name))
+                return
+
+            self.address = interface.ip
+            self.network_address = interface.network.network_address
+            self.broadcast_address = interface.network.broadcast_address
+            self.interface_name = name
+
+            if self.address:
+                return
+
+    def _find_selected_interface(self, netinf):
+        for iface in netinf:
+            for name, data in iface.items():
+                if name == self.interface_name:
+                    return iface
+        return None
 
     def _prepare_socket(self):
 
         netinf = zhelper.get_ifaddrs()
+
         logger.debug("Available interfaces: {0}".format(netinf))
 
         if self.interface_name:
-            logger.debug("Trying selected interface {0}".format(self.interface_name))
-            for iface in netinf:
-                for name, data in iface.items():
-                    if name != self.interface_name:
-                        continue
-                    data_2 = data.get(2)
-
-                    if not data_2:
-                        logger.debug("No data_2 found for interface {0}.".format(name))
-                        break
-                    if self._try_interface(name, data, data_2):
-                        address_str = data_2.get("addr")
-                        netmask_str = data_2.get("netmask")
-                        interface_string = "{0}/{1}".format(address_str, netmask_str)
-                        interface = ipaddress.ip_interface(u(interface_string))
-
-                        self.address = interface.ip
-                        self.network_address = interface.network.network_address
-                        self.broadcast_address = interface.network.broadcast_address
-                        self.interface_name = name
-            logger.debug("Could not use the selected interface")
+            logger.debug("Trying the selected interface: {0}".format(self.interface_name))
+            selected_interface = self._find_selected_interface(netinf)
+            if selected_interface is not None:
+                self._try_interface(selected_interface)
 
         if not self.address:
+            logger.debug("Looping over interfaces.")
+            # Loop over the interfaces and their settings to try to find the broadcast address.
+            # ipv4 only currently and needs a valid broadcast address
             for iface in netinf:
-                # Loop over the interfaces and their settings to try to find the broadcast address.
-                # ipv4 only currently and needs a valid broadcast address
-                for name, data in iface.items():
-                    logger.debug("Checking out interface {0}.".format(name))
-                    # For some reason the data we need lives in the "2" section of the interface.
-                    data_2 = data.get(2)
-
-                    if not data_2:
-                        logger.debug("No data_2 found for interface {0}.".format(name))
-                        continue
-
-                    if self._try_interface(name, data, data_2):
-                        address_str = data_2.get("addr")
-                        netmask_str = data_2.get("netmask")
-                        interface_string = "{0}/{1}".format(address_str, netmask_str)
-                        interface = ipaddress.ip_interface(u(interface_string))
-
-                        self.address = interface.ip
-                        self.network_address = interface.network.network_address
-                        self.broadcast_address = interface.network.broadcast_address
-                        self.interface_name = name
-
+                self._try_interface(iface)
                 if self.address:
                     break
-
             logger.debug("Finished scanning interfaces.")
 
         if not self.address:
@@ -249,7 +230,7 @@ class ZBeacon(object):
         request = self.pipe.recv_multipart()
         command = request.pop(0).decode('UTF-8')
         if not command:
-            return -1                  #  Interrupted
+            return -1  # Interrupted
 
         if self.verbose:
             logger.debug("zbeacon: API command={0}".format(command))
@@ -310,20 +291,21 @@ class ZBeacon(object):
         try:
             self.udpsock.sendto(self.transmit, (str(self.broadcast_address),
                                                 self.port_nbr))
-            
+
         except OSError as e:
-            
+
             # network down, just wait, it could come back up again.
             # socket call errors 50 and 51 relate to the network being
-            # down or unreachable, the recommended action to take is to 
+            # down or unreachable, the recommended action to take is to
             # try again so we don't terminate in these cases.
-            if e.errno in [ENETDOWN, ENETUNREACH]: pass
-            
+            if e.errno in [ENETDOWN, ENETUNREACH]:
+                pass
+
             # all other cases, we'll terminate
             else:
                 logger.debug("Network seems gone, exiting zbeacon")
                 self.terminated = True
-                
+
         except socket.error:
             logger.debug("Network seems gone, exiting zbeacon")
             self.terminated = True
@@ -358,12 +340,14 @@ if __name__ == '__main__':
     import zmq
     import struct
     import time
+
     speaker = ZActor(zmq.Context(), ZBeacon)
     speaker.send_unicode("VERBOSE")
     speaker.send_unicode("CONFIGURE", zmq.SNDMORE)
     speaker.send(struct.pack("I", 9999))
     speaker.send_unicode("PUBLISH", zmq.SNDMORE)
     import uuid
+
     transmit = struct.pack('cccb16sH', b'Z', b'R', b'E',
                            1, uuid.uuid4().bytes,
                            socket.htons(1300))

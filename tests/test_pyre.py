@@ -167,7 +167,7 @@ class PyreTest(unittest.TestCase):
     def test_set_interface(self):
         ctx = zmq.Context()
         node = pyre.Pyre("node_selector", ctx=ctx)
-        node.set_interface("lo")
+        node.set_interface("wlp0s20f3")
         node.start()
         node.stop()
 

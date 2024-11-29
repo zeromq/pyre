@@ -71,7 +71,6 @@ class PyreNode(object):
             if self.interface_name:
                 self.beacon.send_unicode("SET INTERFACE", zmq.SNDMORE)
                 self.beacon.send_unicode(self.interface_name)
-                time.sleep(2)
 
             # Our hostname is provided by zbeacon
             self.beacon.send_unicode("CONFIGURE", zmq.SNDMORE)
