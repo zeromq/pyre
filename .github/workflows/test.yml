@@ -19,7 +19,7 @@ jobs:
           pip install build
           python -m build --sdist .
       - name: Upload source package
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: distribution
           path: dist/
@@ -33,7 +33,7 @@ jobs:
       max-parallel: 1 # tests interfere with each other if run in parallel
       matrix:
         # order matters - this setup minimizes the interference between jobs
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9]
+        python-version: [3.8, 3.9]
         os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
     - uses: actions/checkout@v1
@@ -41,7 +41,7 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}   
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v4
       with:
         name: distribution
         path: dist/

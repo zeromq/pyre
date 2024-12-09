@@ -19,7 +19,7 @@ jobs:
           pip install build
           python -m build --sdist .
       - name: Upload source package
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: distribution
           path: dist/
@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Download source package
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: distribution
           path: dist/
