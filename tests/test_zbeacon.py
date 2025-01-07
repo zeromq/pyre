@@ -10,7 +10,6 @@ from pyre.zbeacon import ZBeacon
 class ZBeaconTest(unittest.TestCase):    
     def setUp(self, *args, **kwargs):
         ctx = zmq.Context()
-        ctx = zmq.Context()
         # two beacon frames
         self.transmit1 = struct.pack('cccb16sH', b'Z', b'R', b'E',
                            1, uuid.uuid4().bytes,

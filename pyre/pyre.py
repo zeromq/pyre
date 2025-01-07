@@ -117,7 +117,8 @@ class Pyre(object):
         """Set network interface for UDP beacons. If you do not set this, CZMQ will
         choose an interface for you. On boxes with several interfaces you should
         specify which one you want to use, or strange things can happen."""
-        logging.debug("set_interface not implemented") #TODO
+        self.actor.send_unicode("SET INTERFACE", zmq.SNDMORE)
+        self.actor.send_unicode(value)
 
     # TODO: check args from zyre
     def set_endpoint(self, format, *args):
