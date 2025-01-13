@@ -45,8 +45,6 @@ jobs:
       with:
         name: distribution
         path: dist/
-    - name: Display structure of downloaded files
-      run: ls -R dist/
     - name: Install dependencies
       shell: bash  # enables file pattern matching on Windows
       run: |
