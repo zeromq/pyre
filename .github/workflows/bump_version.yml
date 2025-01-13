@@ -86,10 +86,10 @@ jobs:
       VERSION_PART: ${{ join(needs.*.outputs.version_part, '') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: 3.7
+          python-version: '3.12'
       - name: Install bump2version
         run: pip install bump2version
       - uses: oleksiyrudenko/gha-git-credentials@v2-latest
