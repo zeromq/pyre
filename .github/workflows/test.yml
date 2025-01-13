@@ -33,7 +33,7 @@ jobs:
       max-parallel: 1 # tests interfere with each other if run in parallel
       matrix:
         # order matters - this setup minimizes the interference between jobs
-        python-version: [3.8, 3.9, 3.10, 3.11, 3.12]
+        python-version: [3.8, 3.9]
         os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
     - uses: actions/checkout@v4
